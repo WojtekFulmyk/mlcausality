@@ -10,6 +10,13 @@ setup(
     author='Wojciech Fulmyk',
     author_email='wfulmyk@proton.me',
     
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Programming Language :: Python',
+        'Topic :: Scientific/Engineering :: Artificial Intelligence',
+        'Topic :: Scientific/Engineering :: Information Analysis',
+    ],
+    
     install_requires=[
         'numpy',
         'scipy',
