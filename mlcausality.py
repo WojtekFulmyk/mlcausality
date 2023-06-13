@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import types
 from copy import deepcopy
 import warnings
