@@ -141,7 +141,26 @@ def mlcausality(X,
     more information, read the relevant documentation for CatBoost, LightGBM and/or
     XGBoost.
     
-    use_standardscaler : bool.
+    use_standardscaler : bool. If True, applies the fit_transform method from sklearn's 
+    StandardScaler to the training data and transform to the test and validation data 
+    (if early stopping is used and there is a validation set). This is not needed if 
+    a tree-based regressor is used, but it may be useful if regressors that are sensitive
+    to feature magnitudes (such as SVR) are chosen instead.
+    
+    y_bounds_error : one of 'warn', 'raise' or 'ignore'. If set to 'warn' and  
+    min(test) < min(train) or max(test) > max(train), then a warning will be printed.
+    If y_bounds_error == 'raise', an exception will be raised. If y_bounds_error == 'ignore',
+    no exception will be raised or warning printed. This parameter is provided 
+    because some regressors, such as tree-based regressors, cannot extrapolate 
+    (or do so very poorly). Setting y_bounds_error to 'warn' or 'raise' would immediately 
+    warn the user or prevent the analysis from actually occuring if the test set is 
+    not within the bounds of the training set.
+    
+    y_bounds_violation_wilcoxon_drop : bool. If True, observations in the test set
+    whose true values are outside [min(train), max(train)] are not used when calculating 
+    the test statistic and p-values of the Wilcoxon test (note: this also requires
+    y_bounds_error to not be set to 'raise'). If False, then the Wilcoxon test statistic 
+    and p-values are calculated using all observations in the test set.
     """
     # Store and parse the dict of passed variables
     if return_kwargs_dict:
