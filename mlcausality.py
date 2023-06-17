@@ -633,3 +633,47 @@ def binary_mlcausality(data, lags, permute_list=None, splits=None, **kwargs):
     return all_out_dfs
 
 
+
+def loco_mlcausality(data, lags, permute_list=None, splits=None, **kwargs):
+    if 'y' in kwargs:
+        del kwargs['y']
+    if 'X' in kwargs:
+        del kwargs['X']
+    if 'lag' in kwargs:
+        del kwargs['lag']
+    kwargs.update({'return_preds':False,'return_nanfilled':False,'return_models':False,'return_scalers':False,
+        'return_summary_df':True,'kwargs_in_summary_df':True,'pretty_print':False})
+    if isinstance(data, pd.DataFrame):
+        hasnames = True
+        names = data.columns.to_list()
+        data = data.to_numpy()
+    else:
+        hasnames = False
+    if permute_list is None:
+        permute_list = list(itertools.permutations(range(data.shape[1]),2))
+    out_dfs = []
+    for y_idx, X_idx in tqdm(permute_list,desc=' permute loop',position=0):
+        y = data[:,[y_idx]+[i for i in range(data.shape[1]) if i not in [y_idx, X_idx]]]
+        X = data[:,[X_idx]]
+        for lag in tqdm(lags,desc=' lags loop',position=1,leave=False):
+            if splits is not None:
+                out_df = mlcausality_splits_loop(splits, X, y, lag, 2, **kwargs)
+                if hasnames:
+                    out_df['y'] = names[y_idx]
+                    out_df['X'] = names[X_idx]
+                else:
+                    out_df['y'] = y_idx
+                    out_df['X'] = X_idx
+            else:
+                out_df = mlcausality(X, y, lag, **kwargs)['summary_df']
+                if hasnames:
+                    out_df['y'] = names[y_idx]
+                    out_df['X'] = names[X_idx]
+                else:
+                    out_df['y'] = y_idx
+                    out_df['X'] = X_idx
+            out_dfs.append(out_df)
+    all_out_dfs = pd.concat(out_dfs,ignore_index=True)
+    all_out_dfs = all_out_dfs.loc[:, ['y','X']+[i for i in all_out_dfs.columns if i not in ['y','X']]]
+    return all_out_dfs
+
