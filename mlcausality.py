@@ -398,13 +398,13 @@ def mlcausality(X,
             val_integ[:,y.shape[1]:] = standardscalers['X'].transform(val_integ[:,y.shape[1]:])
     ### y bounds error
     if y_bounds_error == 'raise':
-        if np.nanmax(train_integ[:,0]) < np.nanmax(test_integ[lag:,0]) or np.nanmin(train_integ[:,0]) > np.nanmin(test_integ[lag:,0]):
+        if np.nanmax(train_integ[lag:,0]) < np.nanmax(test_integ[lag:,0]) or np.nanmin(train_integ[lag:,0]) > np.nanmin(test_integ[lag:,0]):
             raise ValueError('[y_test_min,y_test_max] is not a subset of [y_train_min,y_train_max]. Since many algorithms, especially tree-based algorithms, cannot extrapolate, this could result in erroneous conclusions regarding Granger causality. If you would still like to perform the Granger causality test anyway, re-run mlcausality with y_bounds_error set to either "warn" or "ignore".')
     elif y_bounds_error == 'warn':
-        if np.nanmax(train_integ[:,0]) < np.nanmax(test_integ[lag:,0]) or np.nanmin(train_integ[:,0]) > np.nanmin(test_integ[lag:,0]):
+        if np.nanmax(train_integ[lag:,0]) < np.nanmax(test_integ[lag:,0]) or np.nanmin(train_integ[lag:,0]) > np.nanmin(test_integ[lag:,0]):
             warnings.warn('[y_test_min,y_test_max] is not a subset of [y_train_min,y_train_max].  Since many algorithms, especially tree-based algorithms, cannot extrapolate, this could result in erroneous conclusions regarding Granger causality.')
     ### y bounds indicies and fractions
-    inside_bounds_idx = np.where(np.logical_and(test_integ[lag:,0] >= np.nanmin(train_integ[:,0]), test_integ[lag:,0] <= np.nanmax(train_integ[:,0])))[0]
+    inside_bounds_idx = np.where(np.logical_and(test_integ[lag:,0] >= np.nanmin(train_integ[lag:,0]), test_integ[lag:,0] <= np.nanmax(train_integ[lag:,0])))[0]
     outside_bounds_frac = (test_integ[lag:,0].shape[0] - inside_bounds_idx.shape[0])/test_integ[lag:,0].shape[0]
     ### Sliding window views
     train_sw = sliding_window_view(train_integ, [lag+1,data_scaled.shape[1]]) # Lag+1 gives lag features plus the target column
@@ -676,4 +676,263 @@ def loco_mlcausality(data, lags, permute_list=None, splits=None, **kwargs):
     all_out_dfs = pd.concat(out_dfs,ignore_index=True)
     all_out_dfs = all_out_dfs.loc[:, ['y','X']+[i for i in all_out_dfs.columns if i not in ['y','X']]]
     return all_out_dfs
+
+
+
+
+
+
+
+def multireg_catboost(data,
+    lag,
+    use_minmaxscaler=True,
+    logdiff=True,
+    split=None,
+    train_size=0.7,
+    early_stop_frac = 0.1,
+    early_stop_min_samples = 128,
+    early_stop_rounds = 25,
+    use_standardscaler=True,
+    regressor_params=None,
+    regressor_fit_params=None,
+    return_kwargs_dict=False,
+    return_preds=False,
+    return_errors=True,
+    return_inside_bounds_mask=True,
+    return_model=False,
+    return_scalers=False,
+    return_summary_df=False,
+    kwargs_in_summary_df=False):
+    """
+    Description
+    """
+    # Store and parse the dict of passed variables
+    if return_kwargs_dict:
+        kwargs_dict=locals()
+        del kwargs_dict['data']
+        if kwargs_dict['split'] is not None:
+            kwargs_dict['split'] = 'notNone'
+    ### Initial parameter checks; data scaling; and data splits
+    early_stop = False
+    if data is None or lag is None:
+        raise TypeError('You must supply data and lag to multireg_catboost')
+    if not isinstance(lag, int):
+        raise TypeError('lag was not passed as an int to multireg_catboost')
+    if isinstance(data, (list,tuple)):
+        data = np.atleast_2d(data).reshape(-1,1)
+    if isinstance(data, (pd.Series,pd.DataFrame)):
+        if len(data.shape) == 1 or data.shape[1] == 1:
+            data = np.atleast_2d(data.to_numpy()).reshape(-1,1)
+        else:
+            data = data.to_numpy()
+    if not isinstance(data, np.ndarray):
+        raise TypeError('data could not be cast to np.ndarray in multireg_catboost')
+    if len(data.shape) == 1:
+        data = np.atleast_2d(data).reshape(-1,1)
+    if not isinstance(logdiff, bool):
+        raise TypeError('logdiff must be a bool in multireg_catboost')
+    data = data.astype(np.float32)
+    split_override = False
+    if use_minmaxscaler:
+        minmaxscalers = {}
+        minmaxscalers['data'] = MinMaxScaler(feature_range=(2, 3))
+        data_scaled = minmaxscalers['data'].fit_transform(data)
+    else:
+        data_scaled = data
+    if not split_override and split is not None:
+        if isinstance(split, types.GeneratorType):
+            split = list(split)
+        if len(split) != 2:
+            raise ValueError('If split is provided to multireg_catboost, it must be of length 2')
+        train = data_scaled[split[0], :]
+        test = data_scaled[split[1], :]
+    elif isinstance(train_size, int) and train_size != 0 and train_size != 1:
+        if logdiff and train_size < lag+2:
+            raise ValueError('train_size is too small, resulting in no samples in the train set!')
+        elif logdiff and train_size > data.shape[0]-lag-2:
+            raise ValueError('train_size is too large, resulting in no samples in the test set!')
+        elif not logdiff and train_size < lag+1:
+            raise ValueError('train_size is too small, resulting in no samples in the train set!')
+        elif not logdiff and train_size > data.shape[0]-lag-1:
+            raise ValueError('train_size is too large, resulting in no samples in the test set!')
+        train = data_scaled[:train_size, :]
+        test = data_scaled[train_size:, :]
+    elif isinstance(train_size, float):
+        if train_size <= 0 or train_size >= 1:
+            raise ValueError('train_size is a float that is not between (0,1) in multireg_catboost')
+        elif logdiff and round(train_size*data.shape[0])-lag-2 < 0:
+            raise ValueError('train_size is a float that is too small resulting in no samples in train')
+        elif logdiff and round((1-train_size)*data.shape[0])-lag-2 < 0:
+            raise ValueError('train_size is a float that is too large resulting in no samples in test')
+        elif not logdiff and round(train_size*data.shape[0])-lag-1 < 0:
+            raise ValueError('train_size is a float that is too small resulting in no samples in train')
+        elif not logdiff and round((1-train_size)*data.shape[0])-lag-1 < 0:
+            raise ValueError('train_size is a float that is too large resulting in no samples in test')
+        else:
+            train = data_scaled[:round(train_size*data.shape[0]), :]
+            test = data_scaled[round(train_size*data.shape[0]):, :]
+    else:
+        raise TypeError('train_size must be provided as a float or int to multireg_catboost. Alternatively, you can provide a split to "split".')
+    train_orig_shape0 = deepcopy(train.shape[0])
+    ### Regressors
+    if regressor_fit_params is None:
+        regressor_fit_params = {}
+    if regressor_params is not None:
+        if not isinstance(regressor_params, (dict)):
+            raise TypeError('regressor_params have to be one of None, dict')
+        else:
+            pass
+    else:
+        regressor_params = {}
+    if 'objective' not in regressor_params.keys():
+        regressor_params.update({'objective':'MultiRMSEWithMissingValues'})
+    if 'verbose' not in regressor_params.keys():
+        regressor_params.update({'verbose':False})
+    if not isinstance(early_stop_frac, float) or early_stop_frac < 0 or early_stop_frac >= 1:
+        raise ValueError("early_stop_frac must be a float in [0,1)")
+    if not isinstance(early_stop_min_samples, int):
+        raise TypeError('early_stop_min_samples must be an int')
+    # if we have less than early_stop_min_samples samples for validation, do not use early stopping. Otherwise, use early stopping
+    if logdiff and round(early_stop_frac*train.shape[0])-lag-1-early_stop_min_samples < 0:
+        early_stop = False
+    elif not logdiff and round(early_stop_frac*train.shape[0])-lag-early_stop_min_samples < 0:
+        early_stop = False
+    else:
+        early_stop = True
+    if early_stop:
+        val = deepcopy(train[round((1-early_stop_frac)*train.shape[0]):,:])
+        train = deepcopy(train[:round((1-early_stop_frac)*train.shape[0]),:])
+    from catboost import CatBoostRegressor
+    if early_stop:
+        regressor_params.update({'early_stopping_rounds':early_stop_rounds})
+    model = CatBoostRegressor(**regressor_params)
+    ### Logdiff
+    if logdiff:
+        train_integ = np.diff(np.log(train), axis=0)
+        test_integ = np.diff(np.log(test), axis=0)
+        if early_stop:
+            val_integ = np.diff(np.log(val), axis=0)
+    elif not logdiff:
+        train_integ = train
+        test_integ = test
+        if early_stop:
+            val_integ = val
+    ### Standard scaler
+    if use_standardscaler:
+        standardscalers = {}
+        standardscalers['data'] = StandardScaler(copy=False)
+        train_integ = standardscalers['data'].fit_transform(train_integ)
+        test_integ = standardscalers['data'].transform(test_integ)
+        if early_stop:
+            val_integ = standardscalers['data'].transform(val_integ)
+    ### y bounds indicies
+    if return_inside_bounds_mask:
+        inside_bounds_mask = np.logical_and(test_integ[lag:] >= np.tile(np.nanmin(train_integ[lag:],axis=0).reshape(-1,1), test_integ[lag:].shape[0]).T, test_integ[lag:] <= np.tile(np.nanmax(train_integ[lag:],axis=0).reshape(-1,1), test_integ[lag:].shape[0]).T).astype(float)
+        inside_bounds_mask[inside_bounds_mask == 0] = np.nan
+    ### Sliding window views
+    train_sw = sliding_window_view(train_integ, [lag+1,data_scaled.shape[1]]) # Lag+1 gives lag features plus the target column
+    test_sw = sliding_window_view(test_integ, [lag+1,data_scaled.shape[1]]) # Lag+1 gives lag features plus the target column
+    if early_stop:
+        val_sw = sliding_window_view(val_integ, [lag+1,data_scaled.shape[1]]) # Lag+1 gives lag features plus the target column
+    ### Reshape data
+    train_sw_reshape = train_sw.reshape(train_sw.shape[0],train_sw.shape[1]*train_sw.shape[2]*train_sw.shape[3])
+    test_sw_reshape = test_sw.reshape(test_sw.shape[0],test_sw.shape[1]*test_sw.shape[2]*test_sw.shape[3])
+    if early_stop:
+        val_sw_reshape = val_sw.reshape(val_sw.shape[0],val_sw.shape[1]*val_sw.shape[2]*val_sw.shape[3])
+    ### Handle early stopping
+    if early_stop:
+        regressor_fit_params.update({'eval_set':[(val_sw_reshape[:, :-data_scaled.shape[1]], val_sw_reshape[:, -data_scaled.shape[1]:])]})
+    ### Fit model and get preds    
+    model.fit(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]]), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
+    preds = model.predict(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]]))
+    #ytrue = test_sw_reshape[:, -data_scaled.shape[1]:]
+    ### Transform preds and ytrue if transformations were originally applied
+    ytrue = data[-preds.shape[0]:]
+    if use_standardscaler:
+        preds = standardscalers['data'].inverse_transform(preds)
+        #ytrue = standardscalers['data'].inverse_transform(ytrue)
+    if logdiff:
+        preds = (np.exp(preds)*(test[lag:-1]))
+        #ytrue = (np.exp(ytrue)*(test[lag:-1]))
+    if use_minmaxscaler:
+        preds = minmaxscalers['data'].inverse_transform(preds)
+        #ytrue = minmaxscalers['data'].inverse_transform(ytrue)
+    return_dict = {'summary':{'lag':lag, 'train_obs':train_integ[:,0].shape[0], 'effective_train_obs':train_integ[lag:,0].shape[0], 'test_obs':test_integ[:,0].shape[0], 'effective_test_obs':test_integ[lag:,0].shape[0]}}
+    if return_summary_df:
+        return_dict.update({'summary_df': pd.json_normalize(return_dict['summary'])})
+    if return_kwargs_dict:
+        return_dict.update({'kwargs_dict':kwargs_dict})
+    if return_kwargs_dict and kwargs_in_summary_df:
+        kwargs_df = pd.json_normalize(return_dict['kwargs_dict'])
+        kwargs_df = kwargs_df.loc[[0],[i for i in kwargs_df.columns if i not in ['lag']]]
+        return_dict['summary_df'] = return_dict['summary_df'].loc[[0],[i for i in return_dict['summary_df'].columns if i not in ['wilcoxon.y_bounds_violation_wilcoxon_drop']]]
+        return_dict['summary_df'] = pd.concat([return_dict['summary_df'], kwargs_df], axis=1)
+    if return_preds:
+        return_dict.update({'ytrue':ytrue, 'preds':preds})
+    if return_errors:
+        errors = preds - ytrue
+        return_dict.update({'errors':errors})
+    if return_inside_bounds_mask:
+        return_dict.update({'inside_bounds_mask':inside_bounds_mask})
+    if return_model:
+        return_scalers = True
+        return_dict.update({'model':model})
+    if return_scalers:
+        if use_minmaxscaler:
+            return_dict.update({'scalers':{'minmaxscalers':minmaxscalers}})
+            if use_standardscaler:
+                return_dict['scalers'].update({'standardscalers':standardscalers})
+        elif use_standardscaler:
+            return_dict.update({'scalers':{'standardscalers':standardscalers}})
+            if use_minmaxscaler:
+                return_dict['scalers'].update({'minmaxscalers':minmaxscalers})
+    return return_dict
+
+
+def multiloco_mlcausality(data, lags, permute_list=None, splits=None, y_bounds_violation_wilcoxon_drop=True, **kwargs):
+    if 'y' in kwargs:
+        del kwargs['y']
+    if 'X' in kwargs:
+        del kwargs['X']
+    if 'lag' in kwargs:
+        del kwargs['lag']
+    kwargs.update({'return_kwargs_dict':False,
+                   'return_preds':False,
+                   'return_errors':True,
+                   'return_inside_bounds_mask':True,
+                   'return_model':False,
+                   'return_scalers':False,
+                   'return_summary_df':False,
+                   'kwargs_in_summary_df':False})
+    if isinstance(data, pd.DataFrame):
+        hasnames = True
+        names = data.columns.to_list()
+        data = data.to_numpy()
+    else:
+        hasnames = False
+    if permute_list is None:
+        permute_list = list(range(data.shape[1]))
+    results_list = []
+    # unrestricted models
+    unrestricted = {}
+    for lag in tqdm(lags,desc=' unrestrestricted lag loop',position=0,leave=False):
+        unrestricted[lag] = multireg_catboost(data, lag, **kwargs)
+    for skip_idx in tqdm(permute_list,desc=' restricted permute loop',position=0):
+        data_restrict = data[:,[i for i in range(data.shape[1]) if i not in [skip_idx]]]
+        for lag in tqdm(lags,desc='   restricted lags loop',position=1,leave=False):
+            restricted = multireg_catboost(data_restrict, lag, **kwargs)
+            errors_unrestrict = unrestricted[lag]['errors'][:,[i for i in permute_list if i not in [skip_idx]]]
+            errors_restrict = restricted['errors']
+            if y_bounds_violation_wilcoxon_drop:
+                errors_unrestrict = errors_unrestrict*restricted['inside_bounds_mask']
+                errors_restrict = errors_restrict*restricted['inside_bounds_mask']
+            for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
+                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit')
+                wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
+                if hasnames:
+                    results_list.append([names[skip_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                else:
+                    results_list.append([skip_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+    out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
+    return out_df
 
