@@ -1040,8 +1040,8 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
             errors_unrestrict = unrestricted[lag]['errors'][:,[i for i in permute_list if i not in [skip_idx]]]
             errors_restrict = restricted['errors']
             if y_bounds_violation_wilcoxon_drop:
-                errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
-                errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
+                errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
+                errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
             for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit')
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
