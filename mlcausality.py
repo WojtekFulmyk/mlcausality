@@ -16,8 +16,6 @@ from statsmodels.stats.diagnostic import acorr_ljungbox
 
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from tqdm import tqdm
-
 
 __version__ = '0.1'
 
@@ -41,11 +39,11 @@ def mlcausality(X,
     logdiff=True,
     split=None,
     train_size=0.7,
-    early_stop_frac = 0.1,
-    early_stop_min_samples = 128,
-    early_stop_rounds = 25,
+    early_stop_frac = 0.0,
+    early_stop_min_samples = 1000,
+    early_stop_rounds = 50,
     use_standardscaler=False,
-    y_bounds_error='warn',
+    y_bounds_error='ignore',
     y_bounds_violation_wilcoxon_drop=True,
     regressor='catboostregressor',
     regressor_params=None,
@@ -54,8 +52,11 @@ def mlcausality(X,
     ftest=False,
     normality_tests=False,
     acorr_tests=False,
+    return_restrict_only=False,
+    return_inside_bounds_mask=False,
     return_kwargs_dict=True,
     return_preds=True,
+    return_errors=False,
     return_nanfilled=True,
     return_models=False,
     return_scalers=False,
@@ -129,10 +130,10 @@ def mlcausality(X,
     'catboostregressor', 'xgbregressor', or 'lgbmregressor', or a list composed
     of these strings, or to any other string, early_stop_frac has no effect. By
     enough observations what is meant is that early stopping will happen if
-    len(train) - lags - 1 >= early_stop_min_samples
+    early_stop_frac*len(train) - lags - 1 >= early_stop_min_samples
     where len(train) is the length of the training set (after logdiff if applied)
     and early_stop_min_samples is described below. If you do not want to use
-    early stopping, set this to 0.0
+    early stopping, set this to 0.0, which is the default.
     
     early_stop_min_samples : int. Early stopping minimum validation dataset size.
     For more information, read early_stop_frac above.
@@ -176,42 +177,45 @@ def mlcausality(X,
                 kwargs_dict['regressor'] = [str(type(regressor[0])), str(type(regressor[1]))]
     ### Initial parameter checks; data scaling; and data splits
     early_stop = False
-    if X is None or y is None or lag is None:
-        raise TypeError('You must supply X, y and lags to mlcausality')
+    if y is None or lag is None:
+        raise TypeError('You must supply y and lag to mlcausality')
     if not isinstance(lag, int):
         raise TypeError('lag was not passed as an int to mlcausality')
-    if isinstance(X, (list,tuple)):
-        X = np.atleast_2d(X).reshape(-1,1)
     if isinstance(y, (list,tuple)):
         y = np.atleast_2d(y).reshape(-1,1)
-    if isinstance(X, (pd.Series,pd.DataFrame)):
-        if len(X.shape) == 1 or X.shape[1] == 1:
-            X = np.atleast_2d(X.to_numpy()).reshape(-1,1)
-        else:
-            X = X.to_numpy()
     if isinstance(y, (pd.Series,pd.DataFrame)):
         if len(y.shape) == 1 or y.shape[1] == 1:
             y = np.atleast_2d(y.to_numpy()).reshape(-1,1)
         else:
             y = y.to_numpy()
-    if not isinstance(X, np.ndarray):
-        raise TypeError('X could not be cast to np.ndarray in mlcausality')
     if not isinstance(y, np.ndarray):
         raise TypeError('y could not be cast to np.ndarray in mlcausality')
-    if len(X.shape) == 1:
-        X = np.atleast_2d(X).reshape(-1,1)
     if len(y.shape) == 1:
         y = np.atleast_2d(y).reshape(-1,1)
-    if X.shape[0] != y.shape[0]:
-        print(X.shape)
-        print(y.shape)
-        raise ValueError('X and y must have the same length in dimension 0')
+    y = y.astype(np.float32)
+    if not return_restrict_only:
+        if isinstance(X, (list,tuple)):
+            X = np.atleast_2d(X).reshape(-1,1)
+        if isinstance(X, (pd.Series,pd.DataFrame)):
+            if len(X.shape) == 1 or X.shape[1] == 1:
+                X = np.atleast_2d(X.to_numpy()).reshape(-1,1)
+            else:
+                X = X.to_numpy()
+        if not isinstance(X, np.ndarray):
+            raise TypeError('X could not be cast to np.ndarray in mlcausality')
+        if len(X.shape) == 1:
+            X = np.atleast_2d(X).reshape(-1,1)
+        if X.shape[0] != y.shape[0]:
+            print(X.shape)
+            print(y.shape)
+            raise ValueError('X and y must have the same length in dimension 0')
+        X = X.astype(np.float32)
     if not isinstance(logdiff, bool):
         raise TypeError('logdiff must be a bool in mlcausality')
-    X = X.astype(np.float32)
-    y = y.astype(np.float32)
     split_override = False
     if regressor == 'classic':
+        if return_restrict_only:
+            raise ValueError('If reggressor is classic, return_restrict_only cannot be True')
         regressor = 'linearregression'
         X = np.concatenate([X,X])
         y = np.concatenate([y,y])
@@ -228,11 +232,17 @@ def mlcausality(X,
         minmaxscalers = {}
         minmaxscalers['y'] = MinMaxScaler(feature_range=(2, 3))
         y_transformed = minmaxscalers['y'].fit_transform(y)
-        minmaxscalers['X'] = MinMaxScaler(feature_range=(2, 3))
-        X_transformed = minmaxscalers['X'].fit_transform(X)
-        data_scaled = np.concatenate([y_transformed, X_transformed],axis=1)
+        if not return_restrict_only:
+            minmaxscalers['X'] = MinMaxScaler(feature_range=(2, 3))
+            X_transformed = minmaxscalers['X'].fit_transform(X)
+            data_scaled = np.concatenate([y_transformed, X_transformed],axis=1)
+        else:
+            data_scaled = y_transformed
     else:
-        data_scaled = np.concatenate([y, X],axis=1)
+        if not return_restrict_only:
+            data_scaled = np.concatenate([y, X],axis=1)
+        else:
+            data_scaled = y
     if not split_override and split is not None:
         if isinstance(split, types.GeneratorType):
             split = list(split)
@@ -388,14 +398,17 @@ def mlcausality(X,
     if use_standardscaler:
         standardscalers = {}
         standardscalers['y'] = StandardScaler(copy=False)
-        standardscalers['X'] = StandardScaler(copy=False)
         train_integ[:,:y.shape[1]] = standardscalers['y'].fit_transform(train_integ[:,:y.shape[1]])
-        train_integ[:,y.shape[1]:] = standardscalers['X'].fit_transform(train_integ[:,y.shape[1]:])
         test_integ[:,:y.shape[1]] = standardscalers['y'].transform(test_integ[:,:y.shape[1]])
-        test_integ[:,y.shape[1]:] = standardscalers['X'].transform(test_integ[:,y.shape[1]:])
         if early_stop:
             val_integ[:,:y.shape[1]] = standardscalers['y'].transform(val_integ[:,:y.shape[1]])
-            val_integ[:,y.shape[1]:] = standardscalers['X'].transform(val_integ[:,y.shape[1]:])
+        if not return_restrict_only:
+            standardscalers['X'] = StandardScaler(copy=False)
+            train_integ[:,y.shape[1]:] = standardscalers['X'].fit_transform(train_integ[:,y.shape[1]:])
+            test_integ[:,y.shape[1]:] = standardscalers['X'].transform(test_integ[:,y.shape[1]:])
+            if early_stop:
+                val_integ[:,:y.shape[1]] = standardscalers['y'].transform(val_integ[:,:y.shape[1]])
+                val_integ[:,y.shape[1]:] = standardscalers['X'].transform(val_integ[:,y.shape[1]:])
     ### y bounds error
     if y_bounds_error == 'raise':
         if np.nanmax(train_integ[lag:,0]) < np.nanmax(test_integ[lag:,0]) or np.nanmin(train_integ[lag:,0]) > np.nanmin(test_integ[lag:,0]):
@@ -404,8 +417,12 @@ def mlcausality(X,
         if np.nanmax(train_integ[lag:,0]) < np.nanmax(test_integ[lag:,0]) or np.nanmin(train_integ[lag:,0]) > np.nanmin(test_integ[lag:,0]):
             warnings.warn('[y_test_min,y_test_max] is not a subset of [y_train_min,y_train_max].  Since many algorithms, especially tree-based algorithms, cannot extrapolate, this could result in erroneous conclusions regarding Granger causality.')
     ### y bounds indicies and fractions
-    inside_bounds_idx = np.where(np.logical_and(test_integ[lag:,0] >= np.nanmin(train_integ[lag:,0]), test_integ[lag:,0] <= np.nanmax(train_integ[lag:,0])))[0]
+    inside_bounds_mask_init = np.logical_and(test_integ[lag:,0] >= np.nanmin(train_integ[lag:,0]), test_integ[lag:,0] <= np.nanmax(train_integ[lag:,0]))
+    inside_bounds_idx = np.where(inside_bounds_mask_init)[0]
     outside_bounds_frac = (test_integ[lag:,0].shape[0] - inside_bounds_idx.shape[0])/test_integ[lag:,0].shape[0]
+    if return_inside_bounds_mask:
+        inside_bounds_mask = inside_bounds_mask_init.astype(float).reshape(-1,1)
+        inside_bounds_mask[inside_bounds_mask == 0] = np.nan
     ### Sliding window views
     train_sw = sliding_window_view(train_integ, [lag+1,data_scaled.shape[1]]) # Lag+1 gives lag features plus the target column
     test_sw = sliding_window_view(test_integ, [lag+1,data_scaled.shape[1]]) # Lag+1 gives lag features plus the target column
@@ -414,122 +431,154 @@ def mlcausality(X,
     ### Reshape data
     train_sw_reshape_restrict = train_sw[:,:,:,:y.shape[1]].reshape(train_sw[:,:,:,:y.shape[1]].shape[0],train_sw[:,:,:,:y.shape[1]].shape[1]*train_sw[:,:,:,:y.shape[1]].shape[2]*train_sw[:,:,:,:y.shape[1]].shape[3])
     test_sw_reshape_restrict = test_sw[:,:,:,:y.shape[1]].reshape(test_sw[:,:,:,:y.shape[1]].shape[0],test_sw[:,:,:,:y.shape[1]].shape[1]*test_sw[:,:,:,:y.shape[1]].shape[2]*test_sw[:,:,:,:y.shape[1]].shape[3])
-    train_sw_reshape_unrestrict = train_sw.reshape(train_sw.shape[0],train_sw.shape[1]*train_sw.shape[2]*train_sw.shape[3])
-    test_sw_reshape_unrestrict = test_sw.reshape(test_sw.shape[0],test_sw.shape[1]*test_sw.shape[2]*test_sw.shape[3])
     if early_stop:
         val_sw_reshape_restrict = val_sw[:,:,:,:y.shape[1]].reshape(val_sw[:,:,:,:y.shape[1]].shape[0],val_sw[:,:,:,:y.shape[1]].shape[1]*val_sw[:,:,:,:y.shape[1]].shape[2]*val_sw[:,:,:,:y.shape[1]].shape[3])
-        val_sw_reshape_unrestrict = val_sw.reshape(val_sw.shape[0],val_sw.shape[1]*val_sw.shape[2]*val_sw.shape[3])
+    if not return_restrict_only:
+        train_sw_reshape_unrestrict = train_sw.reshape(train_sw.shape[0],train_sw.shape[1]*train_sw.shape[2]*train_sw.shape[3])
+        test_sw_reshape_unrestrict = test_sw.reshape(test_sw.shape[0],test_sw.shape[1]*test_sw.shape[2]*test_sw.shape[3])
+        if early_stop:
+            val_sw_reshape_restrict = val_sw[:,:,:,:y.shape[1]].reshape(val_sw[:,:,:,:y.shape[1]].shape[0],val_sw[:,:,:,:y.shape[1]].shape[1]*val_sw[:,:,:,:y.shape[1]].shape[2]*val_sw[:,:,:,:y.shape[1]].shape[3])
+            val_sw_reshape_unrestrict = val_sw.reshape(val_sw.shape[0],val_sw.shape[1]*val_sw.shape[2]*val_sw.shape[3])
     ### Handle early stopping
     if isinstance(regressor, str) and regressor.lower() in ['catboostregressor', 'xgbregressor'] and early_stop:
         regressor_fit_params_restrict.update({'eval_set':[(val_sw_reshape_restrict[:, :-y.shape[1]], val_sw_reshape_restrict[:, -y.shape[1]])]})
-        regressor_fit_params_unrestrict.update({'eval_set':[(val_sw_reshape_unrestrict[:, :-data_scaled.shape[1]], val_sw_reshape_unrestrict[:, -data_scaled.shape[1]])]})
+        if not return_restrict_only:
+            regressor_fit_params_unrestrict.update({'eval_set':[(val_sw_reshape_unrestrict[:, :-data_scaled.shape[1]], val_sw_reshape_unrestrict[:, -data_scaled.shape[1]])]})
     elif isinstance(regressor, str) and regressor.lower() == 'lgbmregressor' and early_stop:
         import lightgbm
         if 'verbose' in params_restrict.keys():
             lgbm_restrict_verbosity = params_restrict['verbose']
         else:
             lgbm_restrict_verbosity = True
-        if 'verbose' in params_unrestrict.keys():
-            lgbm_unrestrict_verbosity = params_unrestrict['verbose']
-        else:
-            lgbm_unrestrict_verbosity = True
         lgbm_early_stopping_callback_restrict = lightgbm.early_stopping(early_stop_rounds, first_metric_only=True, verbose=lgbm_restrict_verbosity)
-        lgbm_early_stopping_callback_unrestrict = lightgbm.early_stopping(early_stop_rounds, first_metric_only=True, verbose=lgbm_unrestrict_verbosity)
         regressor_fit_params_restrict.update({'callbacks':[lgbm_early_stopping_callback_restrict], 'eval_set':[(deepcopy(val_sw_reshape_restrict[:, :-y.shape[1]]), deepcopy(val_sw_reshape_restrict[:, -y.shape[1]]))]})
-        regressor_fit_params_unrestrict.update({'callbacks':[lgbm_early_stopping_callback_unrestrict], 'eval_set':[(deepcopy(val_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]), deepcopy(val_sw_reshape_unrestrict[:, -data_scaled.shape[1]]))]})
+        if not return_restrict_only:
+            if 'verbose' in params_unrestrict.keys():
+                lgbm_unrestrict_verbosity = params_unrestrict['verbose']
+            else:
+                lgbm_unrestrict_verbosity = True
+            lgbm_early_stopping_callback_unrestrict = lightgbm.early_stopping(early_stop_rounds, first_metric_only=True, verbose=lgbm_unrestrict_verbosity)
+            regressor_fit_params_unrestrict.update({'callbacks':[lgbm_early_stopping_callback_unrestrict], 'eval_set':[(deepcopy(val_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]), deepcopy(val_sw_reshape_unrestrict[:, -data_scaled.shape[1]]))]})
     ### Pred y using only past values of y
     model_restrict.fit(deepcopy(train_sw_reshape_restrict[:, :-y.shape[1]]), deepcopy(train_sw_reshape_restrict[:, -y.shape[1]]), **regressor_fit_params_restrict)
     preds_restrict = model_restrict.predict(deepcopy(test_sw_reshape_restrict[:, :-y.shape[1]])).flatten()
     #ytrue_restrict = test_sw_reshape_restrict[:, -1].flatten()
-    ### Pred y using past values of y and X    
-    model_unrestrict.fit(deepcopy(train_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]), deepcopy(train_sw_reshape_unrestrict[:, -data_scaled.shape[1]]), **regressor_fit_params_unrestrict)
-    preds_unrestrict = model_unrestrict.predict(deepcopy(test_sw_reshape_unrestrict[:, :-data_scaled.shape[1]])).flatten()
-    #ytrue_unrestrict = test_sw_reshape_unrestrict[:, -data_scaled.shape[1]].flatten()
+    if not return_restrict_only:
+        ### Pred y using past values of y and X    
+        model_unrestrict.fit(deepcopy(train_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]), deepcopy(train_sw_reshape_unrestrict[:, -data_scaled.shape[1]]), **regressor_fit_params_unrestrict)
+        preds_unrestrict = model_unrestrict.predict(deepcopy(test_sw_reshape_unrestrict[:, :-data_scaled.shape[1]])).flatten()
+        #ytrue_unrestrict = test_sw_reshape_unrestrict[:, -data_scaled.shape[1]].flatten()
     ### Transform preds and ytrue if transformations were originally applied
     ytrue = y[-preds_restrict.shape[0]:,[0]]
     if use_standardscaler:
         if y.shape[0] > 1:
             preds_restrict_for_standardscaler = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
-            preds_unrestrict_for_standardscaler = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
+            if not return_restrict_only:
+                preds_unrestrict_for_standardscaler = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
         else:
             preds_restrict_for_standardscaler = preds_restrict.reshape(-1, 1)
-            preds_unrestrict_for_standardscaler = preds_unrestrict.reshape(-1, 1)
+            if not return_restrict_only:
+                preds_unrestrict_for_standardscaler = preds_unrestrict.reshape(-1, 1)
         preds_restrict = standardscalers['y'].inverse_transform(preds_restrict_for_standardscaler)[:,0].flatten()
-        preds_unrestrict = standardscalers['y'].inverse_transform(preds_unrestrict_for_standardscaler)[:,0].flatten()
+        if not return_restrict_only:
+            preds_unrestrict = standardscalers['y'].inverse_transform(preds_unrestrict_for_standardscaler)[:,0].flatten()
         #ytrue_restrict = standardscalers['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
-        #ytrue_unrestrict = standardscalers['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = standardscalers['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
     if logdiff:
         preds_restrict = (np.exp(preds_restrict)*(test[lag:-1,0])).reshape(-1, 1)
-        preds_unrestrict = (np.exp(preds_unrestrict)*(test[lag:-1,0])).reshape(-1, 1)
+        if not return_restrict_only:
+            preds_unrestrict = (np.exp(preds_unrestrict)*(test[lag:-1,0])).reshape(-1, 1)
         #ytrue_restrict = (np.exp(ytrue_restrict)*(test[lag:-1,0])).reshape(-1, 1)
-        #ytrue_unrestrict = (np.exp(ytrue_unrestrict)*(test[lag:-1,0])).reshape(-1, 1)
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = (np.exp(ytrue_unrestrict)*(test[lag:-1,0])).reshape(-1, 1)
     else:
         preds_restrict = preds_restrict.reshape(-1, 1)
-        preds_unrestrict = preds_unrestrict.reshape(-1, 1)
+        if not return_restrict_only:
+            preds_unrestrict = preds_unrestrict.reshape(-1, 1)
         #ytrue_restrict = ytrue_restrict.reshape(-1, 1)
-        #ytrue_unrestrict = ytrue_unrestrict.reshape(-1, 1)
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = ytrue_unrestrict.reshape(-1, 1)
     if use_minmaxscaler:
         if y.shape[0] > 1:
             preds_restrict_for_minmaxscaler = np.concatenate([preds_restrict.reshape(-1, 1),np.ones_like(y[:preds_restrict.shape[0],1:])*np.mean(minmaxscalers['y'].feature_range)], axis=1)
-            preds_unrestrict_for_minmaxscaler = np.concatenate([preds_unrestrict.reshape(-1, 1),np.ones_like(y[:preds_unrestrict.shape[0],1:])*np.mean(minmaxscalers['y'].feature_range)], axis=1)
+            if not return_restrict_only:
+                preds_unrestrict_for_minmaxscaler = np.concatenate([preds_unrestrict.reshape(-1, 1),np.ones_like(y[:preds_unrestrict.shape[0],1:])*np.mean(minmaxscalers['y'].feature_range)], axis=1)
         else:
             preds_restrict_for_minmaxscaler = preds_restrict.reshape(-1, 1)
-            preds_unrestrict_for_minmaxscaler = preds_unrestrict.reshape(-1, 1)
+            if not return_restrict_only:
+                preds_unrestrict_for_minmaxscaler = preds_unrestrict.reshape(-1, 1)
         preds_restrict = minmaxscalers['y'].inverse_transform(preds_restrict_for_minmaxscaler)[:,[0]]
-        preds_unrestrict = minmaxscalers['y'].inverse_transform(preds_unrestrict_for_minmaxscaler)[:,[0]]
+        if not return_restrict_only:
+            preds_unrestrict = minmaxscalers['y'].inverse_transform(preds_unrestrict_for_minmaxscaler)[:,[0]]
         #ytrue_restrict = minmaxscalers['y'].inverse_transform(ytrue_restrict)
-        #ytrue_unrestrict = minmaxscalers['y'].inverse_transform(ytrue_unrestrict)
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = minmaxscalers['y'].inverse_transform(ytrue_unrestrict)
     errors_restrict = preds_restrict - ytrue
-    errors_unrestrict = preds_unrestrict - ytrue
-    if y_bounds_violation_wilcoxon_drop:
-        wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[inside_bounds_idx].flatten()), np.abs(errors_unrestrict[inside_bounds_idx].flatten()), alternative='greater', nan_policy='omit')
-        wilcoxon_num_preds = errors_restrict[inside_bounds_idx].flatten().shape[0]
-    else:
-        wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit')
-        wilcoxon_num_preds = errors_restrict.flatten().shape[0]
-    if ftest:
-        normality_tests = True
-        errors2_restrict = errors_restrict**2
-        errors2_unrestrict = errors_unrestrict**2
-        f_dfn = lag*y.shape[1]
-        f_dfd = errors2_restrict.shape[0]-(lag*(y.shape[1]+X.shape[1]))-1
-        if f_dfd <= 0:
-            f_stat = np.nan
-            ftest_p_value = np.nan
+    if not return_restrict_only:
+        errors_unrestrict = preds_unrestrict - ytrue
+        if y_bounds_violation_wilcoxon_drop:
+            wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[inside_bounds_idx].flatten()), np.abs(errors_unrestrict[inside_bounds_idx].flatten()), alternative='greater', nan_policy='omit')
+            wilcoxon_num_preds = errors_restrict[inside_bounds_idx].flatten().shape[0]
         else:
-            f_stat = ((errors2_restrict.sum() - errors2_unrestrict.sum())/f_dfn)/(errors2_unrestrict.sum()/f_dfd)
-            ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
+            wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit')
+            wilcoxon_num_preds = errors_restrict.flatten().shape[0]
+        if ftest:
+            normality_tests = True
+            errors2_restrict = errors_restrict**2
+            errors2_unrestrict = errors_unrestrict**2
+            f_dfn = lag*y.shape[1]
+            f_dfd = errors2_restrict.shape[0]-(lag*(y.shape[1]+X.shape[1]))-1
+            if f_dfd <= 0:
+                f_stat = np.nan
+                ftest_p_value = np.nan
+            else:
+                f_stat = ((errors2_restrict.sum() - errors2_unrestrict.sum())/f_dfn)/(errors2_unrestrict.sum()/f_dfd)
+                ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
     if normality_tests:
         shapiro_restrict = shapiro(errors_restrict.flatten())
-        shapiro_unrestrict = shapiro(errors_unrestrict.flatten())
         anderson_restrict = anderson(errors_restrict.flatten())
-        anderson_unrestrict = anderson(errors_unrestrict.flatten())
         jarque_bera_restrict = jarque_bera(errors_restrict.flatten(), nan_policy='omit')
-        jarque_bera_unrestrict = jarque_bera(errors_unrestrict.flatten(), nan_policy='omit')
+        if not return_restrict_only:
+            shapiro_unrestrict = shapiro(errors_unrestrict.flatten())
+            anderson_unrestrict = anderson(errors_unrestrict.flatten())
+            jarque_bera_unrestrict = jarque_bera(errors_unrestrict.flatten(), nan_policy='omit')
     if acorr_tests:
         durbin_watson_restricted = durbin_watson(errors_restrict.flatten())
-        durbin_watson_unrestricted = durbin_watson(errors_unrestrict.flatten())
         acorr_ljungbox_restricted = acorr_ljungbox(errors_restrict.flatten(), auto_lag=True, model_df=lag*y.shape[1])
-        acorr_ljungbox_unrestricted = acorr_ljungbox(errors_unrestrict.flatten(), auto_lag=True, model_df=lag*(y.shape[1]+X.shape[1]))
+        if not return_restrict_only:
+            durbin_watson_unrestricted = durbin_watson(errors_unrestrict.flatten())
+            acorr_ljungbox_unrestricted = acorr_ljungbox(errors_unrestrict.flatten(), auto_lag=True, model_df=lag*(y.shape[1]+X.shape[1]))
     if return_nanfilled:
         preds_empty = np.empty([train_orig_shape0+lag+1,]).reshape(-1, 1) # First prediction value will be t=lag+1 to account for the logdiff
         preds_empty[:] = np.nan
         preds_restrict_nanfilled = np.concatenate([preds_empty,preds_restrict])
-        preds_unrestrict_nanfilled = np.concatenate([preds_empty,preds_unrestrict])
+        if not return_restrict_only:
+            preds_unrestrict_nanfilled = np.concatenate([preds_empty,preds_unrestrict])
         ytrue_nanfilled = y[:,[0]]
         #ytrue_restrict_nanfilled = np.concatenate([preds_empty,ytrue_restrict])
-        #ytrue_unrestrict_nanfilled = np.concatenate([preds_empty,ytrue_unrestrict])
+        #if not return_restrict_only:
+        #   ytrue_unrestrict_nanfilled = np.concatenate([preds_empty,ytrue_unrestrict])
     return_dict = {'summary':{'lag':lag, 'train_obs':train_integ[:,0].shape[0], 'effective_train_obs':train_integ[lag:,0].shape[0], 'test_obs':test_integ[:,0].shape[0], 'effective_test_obs':test_integ[lag:,0].shape[0]}}
     if early_stop:
         return_dict['summary'].update({'val_obs':val_integ[:,0].shape[0], 'effective_val_obs':val_integ[lag:,0].shape[0]})
-    return_dict['summary'].update({'outside_bounds_frac':outside_bounds_frac, 'wilcoxon':{'statistic':wilcoxon_abserror.statistic, 'pvalue':wilcoxon_abserror.pvalue, 'y_bounds_violation_wilcoxon_drop':y_bounds_violation_wilcoxon_drop, 'wilcoxon_num_preds':wilcoxon_num_preds}})
-    if ftest:
-        return_dict['summary'].update({'ftest':{'statistic':f_stat,'pvalue':ftest_p_value,'dfn':f_dfn,'dfd':f_dfd}})
+    return_dict['summary'].update({'outside_bounds_frac':outside_bounds_frac}), 
+    if not return_restrict_only:
+        return_dict['summary'].update({'wilcoxon':{'statistic':wilcoxon_abserror.statistic, 'pvalue':wilcoxon_abserror.pvalue, 'y_bounds_violation_wilcoxon_drop':y_bounds_violation_wilcoxon_drop, 'wilcoxon_num_preds':wilcoxon_num_preds}})
+        if ftest:
+            return_dict['summary'].update({'ftest':{'statistic':f_stat,'pvalue':ftest_p_value,'dfn':f_dfn,'dfd':f_dfd}})
     if normality_tests:
-        return_dict['summary'].update({'normality_tests':{'shapiro':{'restricted':{'statistic':shapiro_restrict.statistic, 'pvalue':shapiro_restrict.pvalue}, 'unrestricted':{'statistic':shapiro_unrestrict.statistic, 'pvalue':shapiro_unrestrict.pvalue}}, 'anderson':{'restricted':{'statistic':anderson_restrict.statistic, 'critical_values':anderson_restrict.critical_values, 'significance_level':anderson_restrict.significance_level, 'fit_result':{'params':anderson_restrict.fit_result.params, 'success':anderson_restrict.fit_result.success, 'message':anderson_restrict.fit_result.message}}, 'unrestricted':{'statistic':anderson_unrestrict.statistic, 'critical_values':anderson_unrestrict.critical_values, 'significance_level':anderson_unrestrict.significance_level, 'fit_result':{'params':anderson_unrestrict.fit_result.params, 'success':anderson_unrestrict.fit_result.success, 'message':anderson_unrestrict.fit_result.message}}}, 'jarque_bera':{'restricted':{'statistic':jarque_bera_restrict.statistic, 'pvalue':jarque_bera_restrict.pvalue}, 'unrestricted':{'statistic':jarque_bera_unrestrict.statistic, 'pvalue':jarque_bera_unrestrict.pvalue}}}})
+        if not return_restrict_only:
+            return_dict['summary'].update({'normality_tests':{'shapiro':{'restricted':{'statistic':shapiro_restrict.statistic, 'pvalue':shapiro_restrict.pvalue}, 'unrestricted':{'statistic':shapiro_unrestrict.statistic, 'pvalue':shapiro_unrestrict.pvalue}}, 'anderson':{'restricted':{'statistic':anderson_restrict.statistic, 'critical_values':anderson_restrict.critical_values, 'significance_level':anderson_restrict.significance_level, 'fit_result':{'params':{'loc':anderson_restrict.fit_result.params.loc, 'scale':anderson_restrict.fit_result.params.scale}, 'success':anderson_restrict.fit_result.success, 'message':str(anderson_restrict.fit_result.message)}}, 'unrestricted':{'statistic':anderson_unrestrict.statistic, 'critical_values':anderson_unrestrict.critical_values, 'significance_level':anderson_unrestrict.significance_level, 'fit_result':{'params':{'loc':anderson_unrestrict.fit_result.params.loc, 'scale':anderson_unrestrict.fit_result.params.scale}, 'success':anderson_unrestrict.fit_result.success, 'message':str(anderson_unrestrict.fit_result.message)}}}, 'jarque_bera':{'restricted':{'statistic':jarque_bera_restrict.statistic, 'pvalue':jarque_bera_restrict.pvalue}, 'unrestricted':{'statistic':jarque_bera_unrestrict.statistic, 'pvalue':jarque_bera_unrestrict.pvalue}}}})
+        else:
+            return_dict['summary'].update({'normality_tests':{'shapiro':{'restricted':{'statistic':shapiro_restrict.statistic, 'pvalue':shapiro_restrict.pvalue}}, 'anderson':{'restricted':{'statistic':anderson_restrict.statistic, 'critical_values':anderson_restrict.critical_values, 'significance_level':anderson_restrict.significance_level, 'fit_result':{'params':{'loc':anderson_restrict.fit_result.params.loc, 'scale':anderson_restrict.fit_result.params.scale}, 'success':anderson_restrict.fit_result.success, 'message':str(anderson_restrict.fit_result.message)}}}, 'jarque_bera':{'restricted':{'statistic':jarque_bera_restrict.statistic, 'pvalue':jarque_bera_restrict.pvalue}}}})
     if acorr_tests:
-        return_dict['summary'].update({'durbin_watson': {'restricted':durbin_watson_restricted, 'unrestricted':durbin_watson_unrestricted}})
-        return_dict.update({'ljungbox':{'restricted':acorr_ljungbox_restricted, 'unrestricted':acorr_ljungbox_unrestricted}})
+        if not return_restrict_only:
+            return_dict['summary'].update({'durbin_watson': {'restricted':durbin_watson_restricted, 'unrestricted':durbin_watson_unrestricted}})
+            return_dict.update({'ljungbox':{'restricted':acorr_ljungbox_restricted, 'unrestricted':acorr_ljungbox_unrestricted}})
+        else:
+            return_dict['summary'].update({'durbin_watson': {'restricted':durbin_watson_restricted}})
+            return_dict.update({'ljungbox':{'restricted':acorr_ljungbox_restricted}})
     if return_summary_df:
         return_dict.update({'summary_df': pd.json_normalize(return_dict['summary'])})
     if return_kwargs_dict:
@@ -539,13 +588,28 @@ def mlcausality(X,
         kwargs_df = kwargs_df.loc[[0],[i for i in kwargs_df.columns if i not in ['lag']]]
         return_dict['summary_df'] = return_dict['summary_df'].loc[[0],[i for i in return_dict['summary_df'].columns if i not in ['wilcoxon.y_bounds_violation_wilcoxon_drop']]]
         return_dict['summary_df'] = pd.concat([return_dict['summary_df'], kwargs_df], axis=1)
-    if return_preds:
-        return_dict.update({'ytrue':ytrue, 'preds':{'restricted':preds_restrict, 'unrestricted':preds_unrestrict}})
-    if return_nanfilled:
-        return_dict.update({'ytrue_nanfilled':ytrue_nanfilled, 'preds_nanfilled':{'restricted':preds_restrict_nanfilled, 'unrestricted':preds_unrestrict_nanfilled}})
-    if return_models:
-        return_scalers = True
-        return_dict.update({'models':{'restricted': model_restrict, 'unrestricted': model_unrestrict}})
+    if not return_restrict_only:
+        if return_preds:
+            return_dict.update({'ytrue':ytrue, 'preds':{'restricted':preds_restrict, 'unrestricted':preds_unrestrict}})
+        if return_nanfilled:
+            return_dict.update({'ytrue_nanfilled':ytrue_nanfilled, 'preds_nanfilled':{'restricted':preds_restrict_nanfilled, 'unrestricted':preds_unrestrict_nanfilled}})
+        if return_models:
+            return_scalers = True
+            return_dict.update({'models':{'restricted': model_restrict, 'unrestricted': model_unrestrict}})
+        if return_errors:
+            return_dict.update({'errors':{'restricted': errors_restrict, 'unrestricted': errors_unrestrict}})
+    else:
+        if return_preds:
+            return_dict.update({'ytrue':ytrue, 'preds':{'restricted':preds_restrict}})
+        if return_nanfilled:
+            return_dict.update({'ytrue_nanfilled':ytrue_nanfilled, 'preds_nanfilled':{'restricted':preds_restrict_nanfilled}})
+        if return_models:
+            return_scalers = True
+            return_dict.update({'models':{'restricted': model_restrict}})
+        if return_errors:
+            return_dict.update({'errors':{'restricted': errors_restrict}})
+    if return_inside_bounds_mask:
+        return_dict.update({'inside_bounds_mask':inside_bounds_mask})
     if return_scalers:
         if use_minmaxscaler:
             return_dict.update({'scalers':{'minmaxscalers':minmaxscalers}})
@@ -558,6 +622,13 @@ def mlcausality(X,
     if pretty_print:
         pretty_dict(return_dict['summary'], init_message='########## SUMMARY ##########')
     return return_dict
+
+
+
+
+
+
+
 
 
 def mlcausality_splits_loop(splits, X=None, y=None, lag=None, loop_position=0, **kwargs):
@@ -573,7 +644,7 @@ def mlcausality_splits_loop(splits, X=None, y=None, lag=None, loop_position=0, *
         splits = list(splits)
     out_dfs = []
     split_counter = 0
-    for train_idx, test_idx in tqdm(splits,desc=' splits loop',position=loop_position,leave=False):
+    for train_idx, test_idx in splits:
         kwargs.update({'split':[train_idx,test_idx]})
         out_df = mlcausality(**kwargs)['summary_df']
         out_df['split'] = split_counter
@@ -588,16 +659,32 @@ def mlcausality_splits_loop(splits, X=None, y=None, lag=None, loop_position=0, *
 
 
 
-
-def binary_mlcausality(data, lags, permute_list=None, splits=None, **kwargs):
+def binary_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, **kwargs):
     if 'y' in kwargs:
         del kwargs['y']
     if 'X' in kwargs:
         del kwargs['X']
     if 'lag' in kwargs:
         del kwargs['lag']
-    kwargs.update({'return_preds':False,'return_nanfilled':False,'return_models':False,'return_scalers':False,
-        'return_summary_df':True,'kwargs_in_summary_df':True,'pretty_print':False})
+    kwargs.update({'acorr_tests':False,
+                   'normality_tests':False,
+                   'return_restrict_only':True,
+                   'return_inside_bounds_mask':False,
+                   'return_kwargs_dict':False,
+                   'return_preds':False,
+                   'return_errors':True,
+                   'return_nanfilled':False,
+                   'return_models':False,
+                   'return_scalers':False,
+                   'return_summary_df':False,
+                   'kwargs_in_summary_df':False,
+                   'pretty_print':False,
+                   })
+    if y_bounds_violation_wilcoxon_drop:
+        kwargs_unrestricted = deepcopy(kwargs)
+        kwargs_unrestricted.update({'return_inside_bounds_mask':True})
+    else:
+        kwargs_unrestricted = kwargs
     if isinstance(data, pd.DataFrame):
         hasnames = True
         names = data.columns.to_list()
@@ -606,43 +693,64 @@ def binary_mlcausality(data, lags, permute_list=None, splits=None, **kwargs):
         hasnames = False
     if permute_list is None:
         permute_list = list(itertools.permutations(range(data.shape[1]),2))
-    out_dfs = []
-    for y_idx, X_idx in tqdm(permute_list,desc=' permute loop',position=0):
-        y = data[:,[y_idx]]
-        X = data[:,[X_idx]]
-        for lag in tqdm(lags,desc=' lags loop',position=1,leave=False):
-            if splits is not None:
-                out_df = mlcausality_splits_loop(splits, X, y, lag, 2, **kwargs)
+    results_list = []
+    y_unique_list = sorted(set([i[1] for i in permute_list]))
+    for y_idx in y_unique_list:
+        X_idx_list = [i[0] for i in permute_list if i[1] == y_idx]
+        # unrestricted models
+        unrestricted = {}
+        for lag in lags:
+            unrestricted[lag] = mlcausality(X=None, y=data[:,[y_idx]], lag=lag, **kwargs_unrestricted)
+        for X_idx in X_idx_list:
+            data_restrict = data[:,[y_idx, X_idx]]
+            for lag in lags:
+                restricted = mlcausality(X=None, y=data_restrict, lag=lag, **kwargs)
+                errors_unrestrict = unrestricted[lag]['errors']['restricted']
+                errors_restrict = restricted['errors']['restricted']
+                if y_bounds_violation_wilcoxon_drop:
+                    errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
+                    errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
+                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit')
+                wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if hasnames:
-                    out_df['y'] = names[y_idx]
-                    out_df['X'] = names[X_idx]
+                    results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
                 else:
-                    out_df['y'] = y_idx
-                    out_df['X'] = X_idx
-            else:
-                out_df = mlcausality(X, y, lag, **kwargs)['summary_df']
-                if hasnames:
-                    out_df['y'] = names[y_idx]
-                    out_df['X'] = names[X_idx]
-                else:
-                    out_df['y'] = y_idx
-                    out_df['X'] = X_idx
-            out_dfs.append(out_df)
-    all_out_dfs = pd.concat(out_dfs,ignore_index=True)
-    all_out_dfs = all_out_dfs.loc[:, ['y','X']+[i for i in all_out_dfs.columns if i not in ['y','X']]]
-    return all_out_dfs
+                    results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+    out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
+    return out_df
 
 
 
-def loco_mlcausality(data, lags, permute_list=None, splits=None, **kwargs):
+
+
+
+
+def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, **kwargs):
     if 'y' in kwargs:
         del kwargs['y']
     if 'X' in kwargs:
         del kwargs['X']
     if 'lag' in kwargs:
         del kwargs['lag']
-    kwargs.update({'return_preds':False,'return_nanfilled':False,'return_models':False,'return_scalers':False,
-        'return_summary_df':True,'kwargs_in_summary_df':True,'pretty_print':False})
+    kwargs.update({'acorr_tests':False,
+                   'normality_tests':False,
+                   'return_restrict_only':True,
+                   'return_inside_bounds_mask':False,
+                   'return_kwargs_dict':False,
+                   'return_preds':False,
+                   'return_errors':True,
+                   'return_nanfilled':False,
+                   'return_models':False,
+                   'return_scalers':False,
+                   'return_summary_df':False,
+                   'kwargs_in_summary_df':False,
+                   'pretty_print':False,
+                   })
+    if y_bounds_violation_wilcoxon_drop:
+        kwargs_unrestricted = deepcopy(kwargs)
+        kwargs_unrestricted.update({'return_inside_bounds_mask':True})
+    else:
+        kwargs_unrestricted = kwargs
     if isinstance(data, pd.DataFrame):
         hasnames = True
         names = data.columns.to_list()
@@ -651,33 +759,31 @@ def loco_mlcausality(data, lags, permute_list=None, splits=None, **kwargs):
         hasnames = False
     if permute_list is None:
         permute_list = list(itertools.permutations(range(data.shape[1]),2))
-    out_dfs = []
-    for y_idx, X_idx in tqdm(permute_list,desc=' permute loop',position=0):
-        y = data[:,[y_idx]+[i for i in range(data.shape[1]) if i not in [y_idx, X_idx]]]
-        X = data[:,[X_idx]]
-        for lag in tqdm(lags,desc=' lags loop',position=1,leave=False):
-            if splits is not None:
-                out_df = mlcausality_splits_loop(splits, X, y, lag, 2, **kwargs)
+    results_list = []
+    y_unique_list = sorted(set([i[1] for i in permute_list]))
+    for y_idx in y_unique_list:
+        X_idx_list = [i[0] for i in permute_list if i[1] == y_idx]
+        # unrestricted models
+        unrestricted = {}
+        for lag in lags:
+            unrestricted[lag] = mlcausality(X=None, y=data[:,[y_idx]+[i for i in range(data.shape[1]) if i not in [y_idx]]], lag=lag, **kwargs_unrestricted)
+        for X_idx in X_idx_list:
+            data_restrict = data[:,[y_idx]+[i for i in range(data.shape[1]) if i not in [y_idx, X_idx]]]
+            for lag in lags:
+                restricted = mlcausality(X=None, y=data_restrict, lag=lag, **kwargs)
+                errors_unrestrict = unrestricted[lag]['errors']['restricted']
+                errors_restrict = restricted['errors']['restricted']
+                if y_bounds_violation_wilcoxon_drop:
+                    errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
+                    errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
+                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit')
+                wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if hasnames:
-                    out_df['y'] = names[y_idx]
-                    out_df['X'] = names[X_idx]
+                    results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
                 else:
-                    out_df['y'] = y_idx
-                    out_df['X'] = X_idx
-            else:
-                out_df = mlcausality(X, y, lag, **kwargs)['summary_df']
-                if hasnames:
-                    out_df['y'] = names[y_idx]
-                    out_df['X'] = names[X_idx]
-                else:
-                    out_df['y'] = y_idx
-                    out_df['X'] = X_idx
-            out_dfs.append(out_df)
-    all_out_dfs = pd.concat(out_dfs,ignore_index=True)
-    all_out_dfs = all_out_dfs.loc[:, ['y','X']+[i for i in all_out_dfs.columns if i not in ['y','X']]]
-    return all_out_dfs
-
-
+                    results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+    out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
+    return out_df
 
 
 
@@ -889,7 +995,12 @@ def multireg_catboost(data,
     return return_dict
 
 
-def multiloco_mlcausality(data, lags, permute_list=None, splits=None, y_bounds_violation_wilcoxon_drop=True, **kwargs):
+
+
+
+
+
+def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, **kwargs):
     if 'y' in kwargs:
         del kwargs['y']
     if 'X' in kwargs:
@@ -899,11 +1010,16 @@ def multiloco_mlcausality(data, lags, permute_list=None, splits=None, y_bounds_v
     kwargs.update({'return_kwargs_dict':False,
                    'return_preds':False,
                    'return_errors':True,
-                   'return_inside_bounds_mask':True,
+                   'return_inside_bounds_mask':False,
                    'return_model':False,
                    'return_scalers':False,
                    'return_summary_df':False,
                    'kwargs_in_summary_df':False})
+    if y_bounds_violation_wilcoxon_drop:
+        kwargs_unrestricted = deepcopy(kwargs)
+        kwargs_unrestricted.update({'return_inside_bounds_mask':True})
+    else:
+        kwargs_unrestricted = kwargs
     if isinstance(data, pd.DataFrame):
         hasnames = True
         names = data.columns.to_list()
@@ -915,17 +1031,17 @@ def multiloco_mlcausality(data, lags, permute_list=None, splits=None, y_bounds_v
     results_list = []
     # unrestricted models
     unrestricted = {}
-    for lag in tqdm(lags,desc=' unrestrestricted lag loop',position=0,leave=False):
-        unrestricted[lag] = multireg_catboost(data, lag, **kwargs)
-    for skip_idx in tqdm(permute_list,desc=' restricted permute loop',position=0):
+    for lag in lags:
+        unrestricted[lag] = multireg_catboost(data, lag, **kwargs_unrestricted)
+    for skip_idx in permute_list:
         data_restrict = data[:,[i for i in range(data.shape[1]) if i not in [skip_idx]]]
-        for lag in tqdm(lags,desc='   restricted lags loop',position=1,leave=False):
+        for lag in lags:
             restricted = multireg_catboost(data_restrict, lag, **kwargs)
             errors_unrestrict = unrestricted[lag]['errors'][:,[i for i in permute_list if i not in [skip_idx]]]
             errors_restrict = restricted['errors']
             if y_bounds_violation_wilcoxon_drop:
-                errors_unrestrict = errors_unrestrict*restricted['inside_bounds_mask']
-                errors_restrict = errors_restrict*restricted['inside_bounds_mask']
+                errors_unrestrict = errors_unrestrict*unrestricted['inside_bounds_mask']
+                errors_restrict = errors_restrict*unrestricted['inside_bounds_mask']
             for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit')
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
@@ -935,4 +1051,3 @@ def multiloco_mlcausality(data, lags, permute_list=None, splits=None, y_bounds_v
                     results_list.append([skip_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
     out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
     return out_df
-
