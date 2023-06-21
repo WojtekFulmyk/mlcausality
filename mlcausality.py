@@ -212,7 +212,11 @@ def mlcausality(X,
         X = X.astype(np.float32)
     if not isinstance(logdiff, bool):
         raise TypeError('logdiff must be a bool in mlcausality')
-    split_override = False
+    if train_size == 1:
+        early_stop_frac = 0.0
+        split_override = True
+    else:
+        split_override = False
     if regressor == 'classic':
         if return_restrict_only:
             raise ValueError('If reggressor is classic, return_restrict_only cannot be True')
@@ -250,6 +254,9 @@ def mlcausality(X,
             raise ValueError('If split is provided to mlcausality, it must be of length 2')
         train = data_scaled[split[0], :]
         test = data_scaled[split[1], :]
+    elif train_size == 1:
+        train = data_scaled.copy()
+        test = data_scaled.copy()
     elif isinstance(train_size, int) and train_size != 0 and train_size != 1:
         if logdiff and train_size < lag+2:
             raise ValueError('train_size is too small, resulting in no samples in the train set!')
@@ -262,8 +269,8 @@ def mlcausality(X,
         train = data_scaled[:train_size, :]
         test = data_scaled[train_size:, :]
     elif isinstance(train_size, float):
-        if train_size <= 0 or train_size >= 1:
-            raise ValueError('train_size is a float that is not between (0,1) in mlcausality')
+        if train_size <= 0 or train_size > 1:
+            raise ValueError('train_size is a float that is not between (0,1] in mlcausality')
         elif logdiff and round(train_size*y.shape[0])-lag-2 < 0:
             raise ValueError('train_size is a float that is too small resulting in no samples in train')
         elif logdiff and round((1-train_size)*y.shape[0])-lag-2 < 0:
@@ -838,7 +845,11 @@ def multireg_catboost(data,
     if not isinstance(logdiff, bool):
         raise TypeError('logdiff must be a bool in multireg_catboost')
     data = data.astype(np.float32)
-    split_override = False
+    if train_size == 1:
+        early_stop_frac = 0.0
+        split_override = True
+    else:
+        split_override = False
     if use_minmaxscaler:
         minmaxscalers = {}
         minmaxscalers['data'] = MinMaxScaler(feature_range=(2, 3))
@@ -852,6 +863,9 @@ def multireg_catboost(data,
             raise ValueError('If split is provided to multireg_catboost, it must be of length 2')
         train = data_scaled[split[0], :]
         test = data_scaled[split[1], :]
+    elif train_size == 1:
+        train = data_scaled.copy()
+        test = data_scaled.copy()
     elif isinstance(train_size, int) and train_size != 0 and train_size != 1:
         if logdiff and train_size < lag+2:
             raise ValueError('train_size is too small, resulting in no samples in the train set!')
@@ -864,8 +878,8 @@ def multireg_catboost(data,
         train = data_scaled[:train_size, :]
         test = data_scaled[train_size:, :]
     elif isinstance(train_size, float):
-        if train_size <= 0 or train_size >= 1:
-            raise ValueError('train_size is a float that is not between (0,1) in multireg_catboost')
+        if train_size <= 0 or train_size > 1:
+            raise ValueError('train_size is a float that is not between (0,1] in multireg_catboost')
         elif logdiff and round(train_size*data.shape[0])-lag-2 < 0:
             raise ValueError('train_size is a float that is too small resulting in no samples in train')
         elif logdiff and round((1-train_size)*data.shape[0])-lag-2 < 0:
