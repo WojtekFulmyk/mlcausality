@@ -376,6 +376,10 @@ def mlcausality(X,
             from sklearn.svm import NuSVR
             model_restrict = NuSVR(**params_restrict)
             model_unrestrict = NuSVR(**params_unrestrict)
+        elif regressor.lower() == 'kneighborsregressor' or regressor.lower() == 'knn':
+            from sklearn.neighbors import KNeighborsRegressor
+            model_restrict = KNeighborsRegressor(**params_restrict)
+            model_unrestrict = KNeighborsRegressor(**params_unrestrict)
         elif regressor.lower() == 'gradientboostingregressor':
             from sklearn.ensemble import GradientBoostingRegressor
             model_restrict = GradientBoostingRegressor(**params_restrict)
