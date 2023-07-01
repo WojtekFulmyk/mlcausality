@@ -1081,7 +1081,10 @@ def multireg_mlcausality(data,
 
 
 
-def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, **kwargs):
+def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, return_pvalue_matrix_only=False, **kwargs):
+    if return_pvalue_matrix_only:
+        lags = [lags[0]]
+        permute_list = None
     if 'y' in kwargs:
         del kwargs['y']
     if 'X' in kwargs:
@@ -1101,15 +1104,18 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
         kwargs_unrestricted.update({'return_inside_bounds_mask':True})
     else:
         kwargs_unrestricted = kwargs
-    if isinstance(data, pd.DataFrame):
-        hasnames = True
-        names = data.columns.to_list()
-        data = data.to_numpy()
-    else:
-        hasnames = False
     if permute_list is None:
         permute_list = list(range(data.shape[1]))
-    results_list = []
+    if return_pvalue_matrix_only:
+        out_df = np.ones([data.shape[1],data.shape[1]])
+    else:
+        if isinstance(data, pd.DataFrame):
+            hasnames = True
+            names = data.columns.to_list()
+            data = data.to_numpy()
+        else:
+            hasnames = False
+        results_list = []
     # unrestricted models
     unrestricted = {}
     for lag in lags:
@@ -1125,10 +1131,15 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                 errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
             for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit')
-                wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
-                if hasnames:
-                    results_list.append([names[skip_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                if not return_pvalue_matrix_only:
+                    wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
+                if return_pvalue_matrix_only:
+                    out_df[skip_idx,y_idx] = wilcoxon_abserror.pvalue
                 else:
-                    results_list.append([skip_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
-    out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
+                    if hasnames:
+                        results_list.append([names[skip_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                    else:
+                        results_list.append([skip_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+    if not return_pvalue_matrix_only:
+        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
     return out_df
