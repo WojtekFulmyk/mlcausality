@@ -192,7 +192,9 @@ def mlcausality(X,
         raise TypeError('y could not be cast to np.ndarray in mlcausality')
     if len(y.shape) == 1:
         y = np.atleast_2d(y).reshape(-1,1)
-    if regressor.lower() == 'gaussianprocessregressor' or regressor.lower() == 'gpr' or regressor.lower() == 'kernelridge' or regressor.lower() == 'kernelridgeregressor' or regressor.lower() == 'krr':
+    if regressor.lower() == 'gaussianprocessregressor' or regressor.lower() == 'gpr':
+        y = y.astype(np.float128)
+    elif regressor.lower() == 'kernelridge' or regressor.lower() == 'kernelridgeregressor' or regressor.lower() == 'krr':
         y = y.astype(np.float64)
     else:
         y = y.astype(np.float32)
