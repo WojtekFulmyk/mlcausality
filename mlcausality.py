@@ -38,10 +38,10 @@ def mlcausality(X,
     use_minmaxscaler=True,
     logdiff=True,
     split=None,
-    train_size=0.7,
-    early_stop_frac = 0.0,
-    early_stop_min_samples = 1000,
-    early_stop_rounds = 50,
+    train_size=1,
+    early_stop_frac=0.0,
+    early_stop_min_samples=1000,
+    early_stop_rounds=50,
     use_standardscaler=False,
     y_bounds_error='ignore',
     y_bounds_violation_wilcoxon_drop=True,
@@ -858,16 +858,18 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_
 
 
 
-def multireg_catboost(data,
+
+def multireg_mlcausality(data,
     lag,
     use_minmaxscaler=True,
     logdiff=True,
     split=None,
-    train_size=0.7,
-    early_stop_frac = 0.0,
-    early_stop_min_samples = 1000,
-    early_stop_rounds = 50,
+    train_size=1,
+    early_stop_frac=0.0,
+    early_stop_min_samples=1000,
+    early_stop_rounds=50,
     use_standardscaler=True,
+    regressor='krr',
     regressor_params=None,
     regressor_fit_params=None,
     return_kwargs_dict=False,
@@ -890,9 +892,9 @@ def multireg_catboost(data,
     ### Initial parameter checks; data scaling; and data splits
     early_stop = False
     if data is None or lag is None:
-        raise TypeError('You must supply data and lag to multireg_catboost')
+        raise TypeError('You must supply data and lag to multireg_mlcausality')
     if not isinstance(lag, int):
-        raise TypeError('lag was not passed as an int to multireg_catboost')
+        raise TypeError('lag was not passed as an int to multireg_mlcausality')
     if isinstance(data, (list,tuple)):
         data = np.atleast_2d(data).reshape(-1,1)
     if isinstance(data, (pd.Series,pd.DataFrame)):
@@ -901,11 +903,11 @@ def multireg_catboost(data,
         else:
             data = data.to_numpy()
     if not isinstance(data, np.ndarray):
-        raise TypeError('data could not be cast to np.ndarray in multireg_catboost')
+        raise TypeError('data could not be cast to np.ndarray in multireg_mlcausality')
     if len(data.shape) == 1:
         data = np.atleast_2d(data).reshape(-1,1)
     if not isinstance(logdiff, bool):
-        raise TypeError('logdiff must be a bool in multireg_catboost')
+        raise TypeError('logdiff must be a bool in multireg_mlcausality')
     data = data.astype(np.float32)
     if train_size == 1:
         early_stop_frac = 0.0
@@ -922,7 +924,7 @@ def multireg_catboost(data,
         if isinstance(split, types.GeneratorType):
             split = list(split)
         if len(split) != 2:
-            raise ValueError('If split is provided to multireg_catboost, it must be of length 2')
+            raise ValueError('If split is provided to multireg_mlcausality, it must be of length 2')
         train = data_scaled[split[0], :]
         test = data_scaled[split[1], :]
     elif train_size == 1:
@@ -941,7 +943,7 @@ def multireg_catboost(data,
         test = data_scaled[train_size:, :]
     elif isinstance(train_size, float):
         if train_size <= 0 or train_size > 1:
-            raise ValueError('train_size is a float that is not between (0,1] in multireg_catboost')
+            raise ValueError('train_size is a float that is not between (0,1] in multireg_mlcausality')
         elif logdiff and round(train_size*data.shape[0])-lag-2 < 0:
             raise ValueError('train_size is a float that is too small resulting in no samples in train')
         elif logdiff and round((1-train_size)*data.shape[0])-lag-2 < 0:
@@ -954,7 +956,7 @@ def multireg_catboost(data,
             train = data_scaled[:round(train_size*data.shape[0]), :]
             test = data_scaled[round(train_size*data.shape[0]):, :]
     else:
-        raise TypeError('train_size must be provided as a float or int to multireg_catboost. Alternatively, you can provide a split to "split".')
+        raise TypeError('train_size must be provided as a float or int to multireg_mlcausality. Alternatively, you can provide a split to "split".')
     train_orig_shape0 = deepcopy(train.shape[0])
     ### Regressors
     if regressor_fit_params is None:
@@ -966,28 +968,32 @@ def multireg_catboost(data,
             pass
     else:
         regressor_params = {}
-    if 'objective' not in regressor_params.keys():
-        regressor_params.update({'objective':'MultiRMSEWithMissingValues'})
-    if 'verbose' not in regressor_params.keys():
-        regressor_params.update({'verbose':False})
-    if not isinstance(early_stop_frac, float) or early_stop_frac < 0 or early_stop_frac >= 1:
-        raise ValueError("early_stop_frac must be a float in [0,1)")
-    if not isinstance(early_stop_min_samples, int):
-        raise TypeError('early_stop_min_samples must be an int')
-    # if we have less than early_stop_min_samples samples for validation, do not use early stopping. Otherwise, use early stopping
-    if logdiff and round(early_stop_frac*train.shape[0])-lag-1-early_stop_min_samples < 0:
-        early_stop = False
-    elif not logdiff and round(early_stop_frac*train.shape[0])-lag-early_stop_min_samples < 0:
-        early_stop = False
-    else:
-        early_stop = True
-    if early_stop:
-        val = deepcopy(train[round((1-early_stop_frac)*train.shape[0]):,:])
-        train = deepcopy(train[:round((1-early_stop_frac)*train.shape[0]),:])
-    from catboost import CatBoostRegressor
-    if early_stop:
-        regressor_params.update({'early_stopping_rounds':early_stop_rounds})
-    model = CatBoostRegressor(**regressor_params)
+    if regressor.lower() == 'catboostregressor':
+        if 'objective' not in regressor_params.keys():
+            regressor_params.update({'objective':'MultiRMSEWithMissingValues'})
+        if 'verbose' not in regressor_params.keys():
+            regressor_params.update({'verbose':False})
+        if not isinstance(early_stop_frac, float) or early_stop_frac < 0 or early_stop_frac >= 1:
+            raise ValueError("early_stop_frac must be a float in [0,1)")
+        if not isinstance(early_stop_min_samples, int):
+            raise TypeError('early_stop_min_samples must be an int')
+        # if we have less than early_stop_min_samples samples for validation, do not use early stopping. Otherwise, use early stopping
+        if logdiff and round(early_stop_frac*train.shape[0])-lag-1-early_stop_min_samples < 0:
+            early_stop = False
+        elif not logdiff and round(early_stop_frac*train.shape[0])-lag-early_stop_min_samples < 0:
+            early_stop = False
+        else:
+            early_stop = True
+        if early_stop:
+            val = deepcopy(train[round((1-early_stop_frac)*train.shape[0]):,:])
+            train = deepcopy(train[:round((1-early_stop_frac)*train.shape[0]),:])
+        from catboost import CatBoostRegressor
+        if early_stop:
+            regressor_params.update({'early_stopping_rounds':early_stop_rounds})
+        model = CatBoostRegressor(**regressor_params)
+    elif regressor.lower() == 'kernelridge' or regressor.lower() == 'kernelridgeregressor' or regressor.lower() == 'krr':
+        from sklearn.kernel_ridge import KernelRidge
+        model = KernelRidge(**regressor_params)
     ### Logdiff
     if logdiff:
         train_integ = np.diff(np.log(train), axis=0)
@@ -1075,7 +1081,6 @@ def multireg_catboost(data,
 
 
 
-
 def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, **kwargs):
     if 'y' in kwargs:
         del kwargs['y']
@@ -1108,11 +1113,11 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
     # unrestricted models
     unrestricted = {}
     for lag in lags:
-        unrestricted[lag] = multireg_catboost(data, lag, **kwargs_unrestricted)
+        unrestricted[lag] = multireg_mlcausality(data, lag, **kwargs_unrestricted)
     for skip_idx in permute_list:
         data_restrict = data[:,[i for i in range(data.shape[1]) if i not in [skip_idx]]]
         for lag in lags:
-            restricted = multireg_catboost(data_restrict, lag, **kwargs)
+            restricted = multireg_mlcausality(data_restrict, lag, **kwargs)
             errors_unrestrict = unrestricted[lag]['errors'][:,[i for i in permute_list if i not in [skip_idx]]]
             errors_restrict = restricted['errors']
             if y_bounds_violation_wilcoxon_drop:
