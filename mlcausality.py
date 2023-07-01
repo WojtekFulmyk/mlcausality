@@ -192,7 +192,10 @@ def mlcausality(X,
         raise TypeError('y could not be cast to np.ndarray in mlcausality')
     if len(y.shape) == 1:
         y = np.atleast_2d(y).reshape(-1,1)
-    y = y.astype(np.float32)
+    if regressor.lower() == 'gaussianprocessregressor' or regressor.lower() == 'gpr' or regressor.lower() == 'kernelridge' or regressor.lower() == 'kernelridgeregressor' or regressor.lower() == 'krr':
+        y = y.astype(np.float64)
+    else:
+        y = y.astype(np.float32)
     if not return_restrict_only:
         if isinstance(X, (list,tuple)):
             X = np.atleast_2d(X).reshape(-1,1)
@@ -209,7 +212,10 @@ def mlcausality(X,
             print(X.shape)
             print(y.shape)
             raise ValueError('X and y must have the same length in dimension 0')
-        X = X.astype(np.float32)
+        if regressor.lower() == 'gaussianprocessregressor' or regressor.lower() == 'gpr' or regressor.lower() == 'kernelridge' or regressor.lower() == 'kernelridgeregressor' or regressor.lower() == 'krr':
+            X = X.astype(np.float64)
+        else:
+            X = X.astype(np.float32)
     if not isinstance(logdiff, bool):
         raise TypeError('logdiff must be a bool in mlcausality')
     if train_size == 1:
