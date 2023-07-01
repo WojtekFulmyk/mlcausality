@@ -908,7 +908,10 @@ def multireg_mlcausality(data,
         data = np.atleast_2d(data).reshape(-1,1)
     if not isinstance(logdiff, bool):
         raise TypeError('logdiff must be a bool in multireg_mlcausality')
-    data = data.astype(np.float32)
+    if regressor.lower() == 'catboostregressor':
+        data = data.astype(np.float32)
+    else:
+        data = data.astype(np.float64)
     if train_size == 1:
         early_stop_frac = 0.0
         split_override = True
