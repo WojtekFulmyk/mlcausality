@@ -376,6 +376,14 @@ def mlcausality(X,
             from sklearn.svm import NuSVR
             model_restrict = NuSVR(**params_restrict)
             model_unrestrict = NuSVR(**params_unrestrict)
+        elif regressor.lower() == 'gaussianprocessregressor' or regressor.lower() == 'gpr':
+            from sklearn.gaussian_process import GaussianProcessRegressor
+            model_restrict = GaussianProcessRegressor(**params_restrict)
+            model_unrestrict = GaussianProcessRegressor(**params_unrestrict)
+        elif regressor.lower() == 'kernelridge' or regressor.lower() == 'kernelridgeregressor' or regressor.lower() == 'krr':
+            from sklearn.kernel_ridge import KernelRidge
+            model_restrict = KernelRidge(**params_restrict)
+            model_unrestrict = KernelRidge(**params_unrestrict)
         elif regressor.lower() == 'kneighborsregressor' or regressor.lower() == 'knn':
             from sklearn.neighbors import KNeighborsRegressor
             model_restrict = KNeighborsRegressor(**params_restrict)
