@@ -549,10 +549,10 @@ def mlcausality(X,
     if not return_restrict_only:
         errors_unrestrict = preds_unrestrict - ytrue
         if y_bounds_violation_wilcoxon_drop:
-            wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[inside_bounds_idx].flatten()), np.abs(errors_unrestrict[inside_bounds_idx].flatten()), alternative='greater', nan_policy='omit', method='pratt')
+            wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[inside_bounds_idx].flatten()), np.abs(errors_unrestrict[inside_bounds_idx].flatten()), alternative='greater', nan_policy='omit', zero_method='pratt')
             wilcoxon_num_preds = errors_restrict[inside_bounds_idx].flatten().shape[0]
         else:
-            wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', method='pratt')
+            wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='pratt')
             wilcoxon_num_preds = errors_restrict.flatten().shape[0]
         if ftest:
             normality_tests = True
@@ -752,7 +752,7 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                 if y_bounds_violation_wilcoxon_drop:
                     errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
                     errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
-                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', method='pratt')
+                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='pratt')
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if ftest:
                     if hasnames:
@@ -838,7 +838,7 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_
                 if y_bounds_violation_wilcoxon_drop:
                     errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
                     errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
-                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', method='pratt')
+                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='pratt')
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if ftest:
                     if hasnames:
@@ -1135,7 +1135,7 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                 errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
                 errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
             for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
-                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit', method='pratt')
+                wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit', zero_method='pratt')
                 if not return_pvalue_matrix_only:
                     wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
                 if return_pvalue_matrix_only:
