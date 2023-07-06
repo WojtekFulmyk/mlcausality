@@ -13,6 +13,7 @@ import pandas as pd
 
 from statsmodels.stats.stattools import durbin_watson
 from statsmodels.stats.diagnostic import acorr_ljungbox
+from statsmodels.stats.descriptivestats import sign_test 
 
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
@@ -38,7 +39,7 @@ def mlcausality(X,
     use_minmaxscaler=True,
     logdiff=True,
     split=None,
-    train_size=1,
+    train_size=0.7,
     early_stop_frac=0.0,
     early_stop_min_samples=1000,
     early_stop_rounds=50,
@@ -866,7 +867,7 @@ def multireg_mlcausality(data,
     use_minmaxscaler=True,
     logdiff=True,
     split=None,
-    train_size=1,
+    train_size=0.7,
     early_stop_frac=0.0,
     early_stop_min_samples=1000,
     early_stop_rounds=50,
@@ -1086,7 +1087,7 @@ def multireg_mlcausality(data,
 
 
 
-def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, return_pvalue_matrix_only=False, **kwargs):
+def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, return_pvalue_matrix_only=False, pvalue_matrix_type='sign_test', **kwargs):
     if return_pvalue_matrix_only:
         lags = [lags[0]]
         permute_list = None
@@ -1136,15 +1137,19 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                 errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
             for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
+                sign_test_abserror = sign_test(np.abs(errors_restrict[:,error_idx].flatten()) - np.abs(errors_unrestrict[:,error_idx].flatten()))
                 if not return_pvalue_matrix_only:
                     wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
                 if return_pvalue_matrix_only:
-                    out_df[skip_idx,y_idx] = wilcoxon_abserror.pvalue
+                    if pvalue_matrix_type == 'wilcoxon':
+                        out_df[skip_idx,y_idx] = wilcoxon_abserror.pvalue
+                    elif pvalue_matrix == 'sign_test' or pvalue_matrix == 'sign':
+                        out_df[skip_idx,y_idx] = sign_test_abserror.pvalue
                 else:
                     if hasnames:
-                        results_list.append([names[skip_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                        results_list.append([names[skip_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_abserror.M,sign_test_abserror.pvalue])
                     else:
-                        results_list.append([skip_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                        results_list.append([skip_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_abserror.M,sign_test_abserror.pvalue])
     if not return_pvalue_matrix_only:
-        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
+        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds','sign_test.statistic','sign_test.pvalue'])
     return out_df
