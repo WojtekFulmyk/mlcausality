@@ -1143,7 +1143,7 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                 if return_pvalue_matrix_only:
                     if pvalue_matrix_type == 'wilcoxon':
                         out_df[skip_idx,y_idx] = wilcoxon_abserror.pvalue
-                    elif pvalue_matrix == 'sign_test' or pvalue_matrix == 'sign':
+                    elif pvalue_matrix_type == 'sign_test' or pvalue_matrix_type == 'sign':
                         out_df[skip_idx,y_idx] = sign_test_abserror.pvalue
                 else:
                     if hasnames:
