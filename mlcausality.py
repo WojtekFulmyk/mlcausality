@@ -1138,7 +1138,7 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
             for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
                 error_delta = np.abs(errors_restrict[:,error_idx].flatten()) - np.abs(errors_unrestrict[:,error_idx].flatten())
-                error_delta_num_positive = (error_delta > 0.5).sum()
+                error_delta_num_positive = (error_delta > 0).sum()
                 error_delta_len = error_delta.shape[0]
                 sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
                 if not return_pvalue_matrix_only:
