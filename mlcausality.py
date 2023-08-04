@@ -552,14 +552,14 @@ def mlcausality(X,
         if y_bounds_violation_sign_drop:
             error_delta = np.abs(errors_restrict[inside_bounds_idx].flatten()) - np.abs(errors_unrestrict[inside_bounds_idx].flatten())
             error_delta_num_positive = (error_delta > 0).sum()
-            error_delta_len = error_delta.shape[0]
+            error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
             sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
             wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[inside_bounds_idx].flatten()), np.abs(errors_unrestrict[inside_bounds_idx].flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
             wilcoxon_num_preds = errors_restrict[inside_bounds_idx].flatten().shape[0]
         else:
             error_delta = np.abs(errors_restrict.flatten()) - np.abs(errors_unrestrict.flatten())
             error_delta_num_positive = (error_delta > 0).sum()
-            error_delta_len = error_delta.shape[0]
+            error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
             sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
             wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
             wilcoxon_num_preds = errors_restrict.flatten().shape[0]
@@ -847,6 +847,10 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop
                 if y_bounds_violation_sign_drop:
                     errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
                     errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
+                error_delta = np.abs(errors_restrict.flatten()) - np.abs(errors_unrestrict.flatten())
+                error_delta_num_positive = (error_delta > 0).sum()
+                error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
+                sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if ftest:
@@ -1147,7 +1151,7 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[:,error_idx].flatten()), np.abs(errors_unrestrict[:,error_idx].flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
                 error_delta = np.abs(errors_restrict[:,error_idx].flatten()) - np.abs(errors_unrestrict[:,error_idx].flatten())
                 error_delta_num_positive = (error_delta > 0).sum()
-                error_delta_len = error_delta.shape[0]
+                error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
                 sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
                 if not return_pvalue_matrix_only:
                     wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict[:,error_idx].flatten()))
