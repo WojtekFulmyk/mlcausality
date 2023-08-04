@@ -721,10 +721,10 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
                    'pretty_print':False,
                    })
     if y_bounds_violation_sign_drop:
-        kwargs_unrestricted = deepcopy(kwargs)
-        kwargs_unrestricted.update({'return_inside_bounds_mask':True})
+        kwargs_restricted = deepcopy(kwargs)
+        kwargs_restricted.update({'return_inside_bounds_mask':True})
     else:
-        kwargs_unrestricted = kwargs
+        kwargs_restricted = kwargs
     if isinstance(data, pd.DataFrame):
         hasnames = True
         names = data.columns.to_list()
@@ -737,16 +737,16 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
     y_unique_list = sorted(set([i[1] for i in permute_list]))
     for y_idx in y_unique_list:
         X_idx_list = [i[0] for i in permute_list if i[1] == y_idx]
-        # unrestricted models
-        unrestricted = {}
+        # restricted models
+        restricted = {}
         for lag in lags:
-            unrestricted[lag] = mlcausality(X=None, y=data[:,[y_idx]], lag=lag, **kwargs_unrestricted)
+            restricted[lag] = mlcausality(X=None, y=data[:,[y_idx]], lag=lag, **kwargs_restricted)
         for X_idx in X_idx_list:
-            data_restrict = data[:,[y_idx, X_idx]]
+            data_unrestrict = data[:,[y_idx, X_idx]]
             for lag in lags:
-                restricted = mlcausality(X=None, y=data_restrict, lag=lag, **kwargs)
-                errors_unrestrict = unrestricted[lag]['errors']['restricted']
-                errors_restrict = restricted['errors']['restricted']
+                unrestricted = mlcausality(X=None, y=data_unrestrict, lag=lag, **kwargs)
+                errors_unrestrict = unrestricted['errors']['restricted']
+                errors_restrict = restricted[lag]['errors']['restricted']
                 if ftest:
                     errors2_restrict = errors_restrict**2
                     errors2_unrestrict = errors_unrestrict**2
@@ -759,8 +759,8 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
                         f_stat = ((errors2_restrict.sum() - errors2_unrestrict.sum())/f_dfn)/(errors2_unrestrict.sum()/f_dfd)
                         ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
                 if y_bounds_violation_sign_drop:
-                    errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
-                    errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
+                    errors_unrestrict = errors_unrestrict*restricted[lag]['inside_bounds_mask']
+                    errors_restrict = errors_restrict*restricted[lag]['inside_bounds_mask']
                 error_delta = np.abs(errors_restrict.flatten()) - np.abs(errors_unrestrict.flatten())
                 error_delta_num_positive = (error_delta > 0).sum()
                 error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
