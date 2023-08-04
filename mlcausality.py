@@ -761,22 +761,26 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
                 if y_bounds_violation_sign_drop:
                     errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
                     errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
+                error_delta = np.abs(errors_restrict.flatten()) - np.abs(errors_unrestrict.flatten())
+                error_delta_num_positive = (error_delta > 0).sum()
+                error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
+                sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if ftest:
                     if hasnames:
-                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,f_stat,ftest_p_value])
+                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue,f_stat,ftest_p_value])
                     else:
-                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,f_stat,ftest_p_value])
+                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue,f_stat,ftest_p_value])
                 else:
                     if hasnames:
-                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue])
                     else:
-                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue])
     if ftest:
-        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds','ftest.statistic','ftest.pvalue'])
+        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds','sign_test.statistic','sign_test.pvalue','ftest.statistic','ftest.pvalue'])
     else:
-        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
+        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds','sign_test.statistic','sign_test.pvalue'])
     return out_df
 
 
@@ -855,18 +859,18 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if ftest:
                     if hasnames:
-                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,f_stat,ftest_p_value])
+                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue,f_stat,ftest_p_value])
                     else:
-                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,f_stat,ftest_p_value])
+                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue,f_stat,ftest_p_value])
                 else:
                     if hasnames:
-                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                        results_list.append([names[X_idx],names[y_idx],lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue])
                     else:
-                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds])
+                        results_list.append([X_idx,y_idx,lag,wilcoxon_abserror.statistic,wilcoxon_abserror.pvalue,wilcoxon_num_preds,sign_test_result.statistic,sign_test_result.pvalue])
     if ftest:
-        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds','ftest.statistic','ftest.pvalue'])
+        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds','sign_test.statistic','sign_test.pvalue','ftest.statistic','ftest.pvalue'])
     else:
-        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds'])
+        out_df = pd.DataFrame(results_list, columns=['X','y','lag','wilcoxon.statistic','wilcoxon.pvalue','wilcoxon.num_preds','sign_test.statistic','sign_test.pvalue'])
     return out_df
 
 
