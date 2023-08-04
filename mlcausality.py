@@ -45,7 +45,7 @@ def mlcausality(X,
     early_stop_rounds=50,
     use_standardscaler=False,
     y_bounds_error='ignore',
-    y_bounds_violation_wilcoxon_drop=True,
+    y_bounds_violation_sign_drop=True,
     regressor='catboostregressor',
     regressor_params=None,
     regressor_fit_params=None,
@@ -158,10 +158,10 @@ def mlcausality(X,
     warn the user or prevent the analysis from actually occuring if the test set is 
     not within the bounds of the training set.
     
-    y_bounds_violation_wilcoxon_drop : bool. If True, observations in the test set
+    y_bounds_violation_sign_drop : bool. If True, observations in the test set
     whose true values are outside [min(train), max(train)] are not used when calculating 
-    the test statistic and p-values of the Wilcoxon test (note: this also requires
-    y_bounds_error to not be set to 'raise'). If False, then the Wilcoxon test statistic 
+    the test statistic and p-values of the sign and Wilcoxon tests (note: this also requires
+    y_bounds_error to not be set to 'raise'). If False, then the sign and Wilcoxon test statistics 
     and p-values are calculated using all observations in the test set.
     """
     # Store and parse the dict of passed variables
@@ -238,7 +238,7 @@ def mlcausality(X,
         logdiff = False
         use_standardscaler = False
         y_bounds_error = 'ignore'
-        y_bounds_violation_wilcoxon_drop = False
+        y_bounds_violation_sign_drop = False
         acorr_tests = True
     #data_raw = np.concatenate([y, X],axis=1)
     if use_minmaxscaler:
@@ -549,10 +549,18 @@ def mlcausality(X,
     errors_restrict = preds_restrict - ytrue
     if not return_restrict_only:
         errors_unrestrict = preds_unrestrict - ytrue
-        if y_bounds_violation_wilcoxon_drop:
+        if y_bounds_violation_sign_drop:
+            error_delta = np.abs(errors_restrict[inside_bounds_idx].flatten()) - np.abs(errors_unrestrict[inside_bounds_idx].flatten())
+            error_delta_num_positive = (error_delta > 0).sum()
+            error_delta_len = error_delta.shape[0]
+            sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
             wilcoxon_abserror = wilcoxon(np.abs(errors_restrict[inside_bounds_idx].flatten()), np.abs(errors_unrestrict[inside_bounds_idx].flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
             wilcoxon_num_preds = errors_restrict[inside_bounds_idx].flatten().shape[0]
         else:
+            error_delta = np.abs(errors_restrict.flatten()) - np.abs(errors_unrestrict.flatten())
+            error_delta_num_positive = (error_delta > 0).sum()
+            error_delta_len = error_delta.shape[0]
+            sign_test_result = binomtest(error_delta_num_positive, error_delta_len, alternative='greater')
             wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
             wilcoxon_num_preds = errors_restrict.flatten().shape[0]
         if ftest:
@@ -596,7 +604,7 @@ def mlcausality(X,
         return_dict['summary'].update({'val_obs':val_integ[:,0].shape[0], 'effective_val_obs':val_integ[lag:,0].shape[0]})
     return_dict['summary'].update({'outside_bounds_frac':outside_bounds_frac}), 
     if not return_restrict_only:
-        return_dict['summary'].update({'wilcoxon':{'statistic':wilcoxon_abserror.statistic, 'pvalue':wilcoxon_abserror.pvalue, 'y_bounds_violation_wilcoxon_drop':y_bounds_violation_wilcoxon_drop, 'wilcoxon_num_preds':wilcoxon_num_preds}})
+        return_dict['summary'].update({'sign_test':{'statistic':sign_test_result.statistic, 'pvalue':sign_test_result.pvalue, 'y_bounds_violation_sign_drop':y_bounds_violation_sign_drop, 'sign_test_num_preds':wilcoxon_num_preds}, 'wilcoxon':{'statistic':wilcoxon_abserror.statistic, 'pvalue':wilcoxon_abserror.pvalue, 'y_bounds_violation_sign_drop':y_bounds_violation_sign_drop, 'wilcoxon_num_preds':wilcoxon_num_preds}})
         if ftest:
             return_dict['summary'].update({'ftest':{'statistic':f_stat,'pvalue':ftest_p_value,'dfn':f_dfn,'dfd':f_dfd}})
     if normality_tests:
@@ -618,7 +626,7 @@ def mlcausality(X,
     if return_kwargs_dict and kwargs_in_summary_df:
         kwargs_df = pd.json_normalize(return_dict['kwargs_dict'])
         kwargs_df = kwargs_df.loc[[0],[i for i in kwargs_df.columns if i not in ['lag']]]
-        return_dict['summary_df'] = return_dict['summary_df'].loc[[0],[i for i in return_dict['summary_df'].columns if i not in ['wilcoxon.y_bounds_violation_wilcoxon_drop']]]
+        return_dict['summary_df'] = return_dict['summary_df'].loc[[0],[i for i in return_dict['summary_df'].columns if i not in ['wilcoxon.y_bounds_violation_sign_drop']]]
         return_dict['summary_df'] = pd.concat([return_dict['summary_df'], kwargs_df], axis=1)
     if not return_restrict_only:
         if return_preds:
@@ -691,7 +699,7 @@ def mlcausality_splits_loop(splits, X=None, y=None, lag=None, loop_position=0, *
 
 
 
-def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, ftest=False, **kwargs):
+def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop=True, ftest=False, **kwargs):
     if 'y' in kwargs:
         del kwargs['y']
     if 'X' in kwargs:
@@ -712,7 +720,7 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                    'kwargs_in_summary_df':False,
                    'pretty_print':False,
                    })
-    if y_bounds_violation_wilcoxon_drop:
+    if y_bounds_violation_sign_drop:
         kwargs_unrestricted = deepcopy(kwargs)
         kwargs_unrestricted.update({'return_inside_bounds_mask':True})
     else:
@@ -750,7 +758,7 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                     else:
                         f_stat = ((errors2_restrict.sum() - errors2_unrestrict.sum())/f_dfn)/(errors2_unrestrict.sum()/f_dfd)
                         ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
-                if y_bounds_violation_wilcoxon_drop:
+                if y_bounds_violation_sign_drop:
                     errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
                     errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
@@ -777,7 +785,7 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
 
 
 
-def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, ftest=False, **kwargs):
+def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop=True, ftest=False, **kwargs):
     if 'y' in kwargs:
         del kwargs['y']
     if 'X' in kwargs:
@@ -798,7 +806,7 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_
                    'kwargs_in_summary_df':False,
                    'pretty_print':False,
                    })
-    if y_bounds_violation_wilcoxon_drop:
+    if y_bounds_violation_sign_drop:
         kwargs_unrestricted = deepcopy(kwargs)
         kwargs_unrestricted.update({'return_inside_bounds_mask':True})
     else:
@@ -836,7 +844,7 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_
                     else:
                         f_stat = ((errors2_restrict.sum() - errors2_unrestrict.sum())/f_dfn)/(errors2_unrestrict.sum()/f_dfd)
                         ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
-                if y_bounds_violation_wilcoxon_drop:
+                if y_bounds_violation_sign_drop:
                     errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask']
                     errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask']
                 wilcoxon_abserror = wilcoxon(np.abs(errors_restrict.flatten()), np.abs(errors_unrestrict.flatten()), alternative='greater', nan_policy='omit', zero_method='wilcox')
@@ -1059,7 +1067,7 @@ def multireg_mlcausality(data,
     if return_kwargs_dict and kwargs_in_summary_df:
         kwargs_df = pd.json_normalize(return_dict['kwargs_dict'])
         kwargs_df = kwargs_df.loc[[0],[i for i in kwargs_df.columns if i not in ['lag']]]
-        return_dict['summary_df'] = return_dict['summary_df'].loc[[0],[i for i in return_dict['summary_df'].columns if i not in ['wilcoxon.y_bounds_violation_wilcoxon_drop']]]
+        return_dict['summary_df'] = return_dict['summary_df'].loc[[0],[i for i in return_dict['summary_df'].columns if i not in ['wilcoxon.y_bounds_violation_sign_drop']]]
         return_dict['summary_df'] = pd.concat([return_dict['summary_df'], kwargs_df], axis=1)
     if return_preds:
         return_dict.update({'ytrue':ytrue, 'preds':preds})
@@ -1087,7 +1095,7 @@ def multireg_mlcausality(data,
 
 
 
-def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilcoxon_drop=True, return_pvalue_matrix_only=False, pvalue_matrix_type='sign_test', **kwargs):
+def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop=True, return_pvalue_matrix_only=False, pvalue_matrix_type='sign_test', **kwargs):
     if return_pvalue_matrix_only:
         lags = [lags[0]]
         permute_list = None
@@ -1105,7 +1113,7 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
                    'return_scalers':False,
                    'return_summary_df':False,
                    'kwargs_in_summary_df':False})
-    if y_bounds_violation_wilcoxon_drop:
+    if y_bounds_violation_sign_drop:
         kwargs_unrestricted = deepcopy(kwargs)
         kwargs_unrestricted.update({'return_inside_bounds_mask':True})
     else:
@@ -1132,7 +1140,7 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_wilc
             restricted = multireg_mlcausality(data_restrict, lag, **kwargs)
             errors_unrestrict = unrestricted[lag]['errors'][:,[i for i in permute_list if i not in [skip_idx]]]
             errors_restrict = restricted['errors']
-            if y_bounds_violation_wilcoxon_drop:
+            if y_bounds_violation_sign_drop:
                 errors_unrestrict = errors_unrestrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
                 errors_restrict = errors_restrict*unrestricted[lag]['inside_bounds_mask'][:,[i for i in permute_list if i not in [skip_idx]]]
             for error_idx, y_idx in enumerate([i for i in permute_list if i not in [skip_idx]]):
