@@ -871,9 +871,9 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop
                 wilcoxon_num_preds = np.count_nonzero(~np.isnan(errors_restrict.flatten()))
                 if return_pvalue_matrix_only:
                     if pvalue_matrix_type == 'wilcoxon':
-                        out_df[skip_idx,y_idx] = wilcoxon_abserror.pvalue
+                        out_df[X_idx,y_idx] = wilcoxon_abserror.pvalue
                     elif pvalue_matrix_type == 'sign_test' or pvalue_matrix_type == 'sign':
-                        out_df[skip_idx,y_idx] = sign_test_result.pvalue
+                        out_df[X_idx,y_idx] = sign_test_result.pvalue
                 else:
                     if ftest:
                         if hasnames:
