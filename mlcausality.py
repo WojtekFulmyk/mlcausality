@@ -1055,6 +1055,8 @@ def multireg_mlcausality(data,
     ### Fit model and get preds    
     model.fit(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]]), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
     preds = model.predict(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]]))
+    if regressor.lower() == 'catboostregressor' and len(preds.shape) == 1:
+        preds = preds.reshape(-1, 1)
     #ytrue = test_sw_reshape[:, -data_scaled.shape[1]:]
     ### Transform preds and ytrue if transformations were originally applied
     ytrue = data[-preds.shape[0]:]
