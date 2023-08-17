@@ -15,7 +15,7 @@ from statsmodels.stats.stattools import durbin_watson
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from scipy.stats import binomtest
 
-from sklearn.preprocessing import MinMaxScaler, StandardScaler, Normalizer
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, Normalizer, RobustScaler, PowerTransformer, QuantileTransformer
 
 
 __version__ = '0.1'
@@ -43,6 +43,9 @@ def mlcausality(X,
     early_stop_frac=0.0,
     early_stop_min_samples=1000,
     early_stop_rounds=50,
+    use_robustscaler=False,
+    use_powertransformer=False,
+    use_quantiletransformer=False,
     use_minmaxscaler01=False,
     use_standardscaler=False,
     normalize=False,
@@ -529,6 +532,51 @@ def mlcausality(X,
         test_integ = test
         if early_stop:
             val_integ = val
+    ### RobustScaler
+    if use_robustscaler:
+        robustscalers = {}
+        robustscalers['y'] = RobustScaler()
+        train_integ[:,:y.shape[1]] = robustscalers['y'].fit_transform(train_integ[:,:y.shape[1]])
+        test_integ[:,:y.shape[1]] = robustscalers['y'].transform(test_integ[:,:y.shape[1]])
+        if early_stop:
+            val_integ[:,:y.shape[1]] = robustscalers['y'].transform(val_integ[:,:y.shape[1]])
+        if not return_restrict_only:
+            robustscalers['X'] = RobustScaler()
+            train_integ[:,y.shape[1]:] = robustscalers['X'].fit_transform(train_integ[:,y.shape[1]:])
+            test_integ[:,y.shape[1]:] = robustscalers['X'].transform(test_integ[:,y.shape[1]:])
+            if early_stop:
+                val_integ[:,:y.shape[1]] = robustscalers['y'].transform(val_integ[:,:y.shape[1]])
+                val_integ[:,y.shape[1]:] = robustscalers['X'].transform(val_integ[:,y.shape[1]:])
+    ### PowerTransformer
+    if use_powertransformer:
+        powertransformers = {}
+        powertransformers['y'] = PowerTransformer()
+        train_integ[:,:y.shape[1]] = powertransformers['y'].fit_transform(train_integ[:,:y.shape[1]])
+        test_integ[:,:y.shape[1]] = powertransformers['y'].transform(test_integ[:,:y.shape[1]])
+        if early_stop:
+            val_integ[:,:y.shape[1]] = powertransformers['y'].transform(val_integ[:,:y.shape[1]])
+        if not return_restrict_only:
+            powertransformers['X'] = PowerTransformer()
+            train_integ[:,y.shape[1]:] = powertransformers['X'].fit_transform(train_integ[:,y.shape[1]:])
+            test_integ[:,y.shape[1]:] = powertransformers['X'].transform(test_integ[:,y.shape[1]:])
+            if early_stop:
+                val_integ[:,:y.shape[1]] = powertransformers['y'].transform(val_integ[:,:y.shape[1]])
+                val_integ[:,y.shape[1]:] = powertransformers['X'].transform(val_integ[:,y.shape[1]:])
+    ### QuantileTransformer
+    if use_quantiletransformer:
+        quantiletransformers = {}
+        quantiletransformers['y'] = QuantileTransformer()
+        train_integ[:,:y.shape[1]] = quantiletransformers['y'].fit_transform(train_integ[:,:y.shape[1]])
+        test_integ[:,:y.shape[1]] = quantiletransformers['y'].transform(test_integ[:,:y.shape[1]])
+        if early_stop:
+            val_integ[:,:y.shape[1]] = quantiletransformers['y'].transform(val_integ[:,:y.shape[1]])
+        if not return_restrict_only:
+            quantiletransformers['X'] = QuantileTransformer()
+            train_integ[:,y.shape[1]:] = quantiletransformers['X'].fit_transform(train_integ[:,y.shape[1]:])
+            test_integ[:,y.shape[1]:] = quantiletransformers['X'].transform(test_integ[:,y.shape[1]:])
+            if early_stop:
+                val_integ[:,:y.shape[1]] = quantiletransformers['y'].transform(val_integ[:,:y.shape[1]])
+                val_integ[:,y.shape[1]:] = quantiletransformers['X'].transform(val_integ[:,y.shape[1]:])
     ### MinMaxScaler01
     if use_minmaxscaler01:
         minmaxscalers01 = {}
@@ -646,21 +694,6 @@ def mlcausality(X,
         #ytrue_unrestrict = test_sw_reshape_unrestrict[:, -data_scaled.shape[1]].flatten()
     ### Transform preds and ytrue if transformations were originally applied
     ytrue = y[-preds_restrict.shape[0]:,[0]]
-    if use_minmaxscaler01:
-        if y.shape[0] > 1:
-            preds_restrict_for_minmaxscaler01 = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
-            if not return_restrict_only:
-                preds_unrestrict_for_minmaxscaler01 = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
-        else:
-            preds_restrict_for_minmaxscaler01 = preds_restrict.reshape(-1, 1)
-            if not return_restrict_only:
-                preds_unrestrict_for_minmaxscaler01 = preds_unrestrict.reshape(-1, 1)
-        preds_restrict = minmaxscalers01['y'].inverse_transform(preds_restrict_for_minmaxscaler01)[:,0].flatten()
-        if not return_restrict_only:
-            preds_unrestrict = minmaxscalers01['y'].inverse_transform(preds_unrestrict_for_minmaxscaler01)[:,0].flatten()
-        #ytrue_restrict = minmaxscalers01['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
-        #if not return_restrict_only:
-        #   ytrue_unrestrict = minmaxscalers01['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
     if use_standardscaler:
         if y.shape[0] > 1:
             preds_restrict_for_standardscaler = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
@@ -676,6 +709,66 @@ def mlcausality(X,
         #ytrue_restrict = standardscalers['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
         #if not return_restrict_only:
         #   ytrue_unrestrict = standardscalers['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
+    if use_minmaxscaler01:
+        if y.shape[0] > 1:
+            preds_restrict_for_minmaxscaler01 = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
+            if not return_restrict_only:
+                preds_unrestrict_for_minmaxscaler01 = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
+        else:
+            preds_restrict_for_minmaxscaler01 = preds_restrict.reshape(-1, 1)
+            if not return_restrict_only:
+                preds_unrestrict_for_minmaxscaler01 = preds_unrestrict.reshape(-1, 1)
+        preds_restrict = minmaxscalers01['y'].inverse_transform(preds_restrict_for_minmaxscaler01)[:,0].flatten()
+        if not return_restrict_only:
+            preds_unrestrict = minmaxscalers01['y'].inverse_transform(preds_unrestrict_for_minmaxscaler01)[:,0].flatten()
+        #ytrue_restrict = minmaxscalers01['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = minmaxscalers01['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
+    if use_quantiletransformer:
+        if y.shape[0] > 1:
+            preds_restrict_for_quantiletransformer = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
+            if not return_restrict_only:
+                preds_unrestrict_for_quantiletransformer = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
+        else:
+            preds_restrict_for_quantiletransformer = preds_restrict.reshape(-1, 1)
+            if not return_restrict_only:
+                preds_unrestrict_for_quantiletransformer = preds_unrestrict.reshape(-1, 1)
+        preds_restrict = quantiletransformers['y'].inverse_transform(preds_restrict_for_quantiletransformer)[:,0].flatten()
+        if not return_restrict_only:
+            preds_unrestrict = quantiletransformers['y'].inverse_transform(preds_unrestrict_for_quantiletransformer)[:,0].flatten()
+        #ytrue_restrict = quantiletransformers['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = quantiletransformers['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
+    if use_powertransformer:
+        if y.shape[0] > 1:
+            preds_restrict_for_powertransformer = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
+            if not return_restrict_only:
+                preds_unrestrict_for_powertransformer = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
+        else:
+            preds_restrict_for_powertransformer = preds_restrict.reshape(-1, 1)
+            if not return_restrict_only:
+                preds_unrestrict_for_powertransformer = preds_unrestrict.reshape(-1, 1)
+        preds_restrict = powertransformers['y'].inverse_transform(preds_restrict_for_powertransformer)[:,0].flatten()
+        if not return_restrict_only:
+            preds_unrestrict = powertransformers['y'].inverse_transform(preds_unrestrict_for_powertransformer)[:,0].flatten()
+        #ytrue_restrict = powertransformers['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = powertransformers['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
+    if use_robustscaler:
+        if y.shape[0] > 1:
+            preds_restrict_for_robustscaler = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
+            if not return_restrict_only:
+                preds_unrestrict_for_robustscaler = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
+        else:
+            preds_restrict_for_robustscaler = preds_restrict.reshape(-1, 1)
+            if not return_restrict_only:
+                preds_unrestrict_for_robustscaler = preds_unrestrict.reshape(-1, 1)
+        preds_restrict = robustscalers['y'].inverse_transform(preds_restrict_for_robustscaler)[:,0].flatten()
+        if not return_restrict_only:
+            preds_unrestrict = robustscalers['y'].inverse_transform(preds_unrestrict_for_robustscaler)[:,0].flatten()
+        #ytrue_restrict = robustscalers['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = robustscalers['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
     if logdiff:
         preds_restrict = (np.exp(preds_restrict)*(test[lag:-1,0])).reshape(-1, 1)
         if not return_restrict_only:
@@ -810,20 +903,19 @@ def mlcausality(X,
     if return_inside_bounds_mask:
         return_dict.update({'inside_bounds_mask':inside_bounds_mask})
     if return_scalers:
+        return_dict.update({'scalers':{}})
         if use_minmaxscaler01:
-            return_dict.update({'scalers':{'minmaxscalers01':minmaxscalers01}})
-            if use_minmaxscaler23:
-                return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
-                if use_standardscaler:
-                    return_dict['scalers'].update({'standardscalers':standardscalers})
-            elif use_standardscaler:
-                return_dict['scalers'].update({'standardscalers':standardscalers})
-        elif use_minmaxscaler23:
-            return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
-            if use_standardscaler:
-                return_dict['scalers'].update({'standardscalers':standardscalers})
-        elif use_standardscaler:
-            return_dict.update({'scalers':{'standardscalers':standardscalers}})
+            return_dict['scalers'].update({'minmaxscalers01':minmaxscalers01})
+        if use_minmaxscaler23:
+            return_dict['scalers'].update({'minmaxscalers23':minmaxscalers23})
+        if use_standardscaler:
+            return_dict['scalers'].update({'standardscalers':standardscalers})
+        if use_robustscaler:
+            return_dict['scalers'].update({'robustscalers':robustscalers})
+        if use_powertransformer:
+            return_dict['scalers'].update({'powertransformers':powertransformers})
+        if use_quantiletransformer:
+            return_dict['scalers'].update({'quantiletransformers':quantiletransformers})
     if pretty_print:
         pretty_dict(return_dict['summary'], init_message='########## SUMMARY ##########')
     return return_dict
@@ -1191,6 +1283,9 @@ def multireg_mlcausality(data,
     early_stop_frac=0.0,
     early_stop_min_samples=1000,
     early_stop_rounds=50,
+    use_robustscaler=False,
+    use_powertransformer=False,
+    use_quantiletransformer=False,
     use_minmaxscaler01=False,
     use_standardscaler=False,
     normalize=False,
@@ -1333,6 +1428,30 @@ def multireg_mlcausality(data,
         test_integ = test
         if early_stop:
             val_integ = val
+    ### RobustScaler
+    if use_robustscaler:
+        robustscalers = {}
+        robustscalers['data'] = RobustScaler()
+        train_integ = robustscalers['data'].fit_transform(train_integ)
+        test_integ = robustscalers['data'].transform(test_integ)
+        if early_stop:
+            val_integ = robustscalers['data'].transform(val_integ)
+    ### PowerTransformer
+    if use_powertransformer:
+        powertransformers = {}
+        powertransformers['data'] = PowerTransformer()
+        train_integ = powertransformers['data'].fit_transform(train_integ)
+        test_integ = powertransformers['data'].transform(test_integ)
+        if early_stop:
+            val_integ = powertransformers['data'].transform(val_integ)
+    ### QuantileTransformer
+    if use_quantiletransformer:
+        quantiletransformers = {}
+        quantiletransformers['data'] = QuantileTransformer()
+        train_integ = quantiletransformers['data'].fit_transform(train_integ)
+        test_integ = quantiletransformers['data'].transform(test_integ)
+        if early_stop:
+            val_integ = quantiletransformers['data'].transform(val_integ)
     ### MinMaxScaler01
     if use_minmaxscaler01:
         minmaxscalers01 = {}
@@ -1387,12 +1506,21 @@ def multireg_mlcausality(data,
     #ytrue = test_sw_reshape[:, -data_scaled.shape[1]:]
     ### Transform preds and ytrue if transformations were originally applied
     ytrue = data[-preds.shape[0]:]
-    if use_minmaxscaler01:
-        preds = minmaxscalers01['data'].inverse_transform(preds)
-        #ytrue = minmaxscalers01['data'].inverse_transform(ytrue)
     if use_standardscaler:
         preds = standardscalers['data'].inverse_transform(preds)
         #ytrue = standardscalers['data'].inverse_transform(ytrue)
+    if use_minmaxscaler01:
+        preds = minmaxscalers01['data'].inverse_transform(preds)
+        #ytrue = minmaxscalers01['data'].inverse_transform(ytrue)
+    if use_quantiletransformer:
+        preds = quantiletransformers['data'].inverse_transform(preds)
+        #ytrue = quantiletransformers['data'].inverse_transform(ytrue)
+    if use_powetransformer:
+        preds = powetransformers['data'].inverse_transform(preds)
+        #ytrue = powetransformers['data'].inverse_transform(ytrue)
+    if use_robustscaler:
+        preds = robustscalers['data'].inverse_transform(preds)
+        #ytrue = robustscalers['data'].inverse_transform(ytrue)
     if logdiff:
         preds = (np.exp(preds)*(test[lag:-1]))
         #ytrue = (np.exp(ytrue)*(test[lag:-1]))
@@ -1420,20 +1548,19 @@ def multireg_mlcausality(data,
         return_scalers = True
         return_dict.update({'model':model})
     if return_scalers:
+        return_dict.update({'scalers':{}})
         if use_minmaxscaler01:
-            return_dict.update({'scalers':{'minmaxscalers01':minmaxscalers01}})
-            if use_minmaxscaler23:
-                return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
-                if use_standardscaler:
-                    return_dict['scalers'].update({'standardscalers':standardscalers})
-            if use_standardscaler:
-                return_dict['scalers'].update({'standardscalers':standardscalers})
-        elif use_minmaxscaler23:
-            return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
-            if use_standardscaler:
-                return_dict['scalers'].update({'standardscalers':standardscalers})
-        elif use_standardscaler:
-            return_dict.update({'scalers':{'standardscalers':standardscalers}})
+            return_dict['scalers'].update({'minmaxscalers01':minmaxscalers01})
+        if use_minmaxscaler23:
+            return_dict['scalers'].update({'minmaxscalers23':minmaxscalers23})
+        if use_standardscaler:
+            return_dict['scalers'].update({'standardscalers':standardscalers})
+        if use_robustscaler:
+            return_dict['scalers'].update({'robustscalers':robustscalers})
+        if use_powertransformer:
+            return_dict['scalers'].update({'powertransformers':powertransformers})
+        if use_quantiletransformer:
+            return_dict['scalers'].update({'quantiletransformers':quantiletransformers})
     return return_dict
 
 
