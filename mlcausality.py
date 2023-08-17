@@ -15,7 +15,7 @@ from statsmodels.stats.stattools import durbin_watson
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from scipy.stats import binomtest
 
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, Normalizer
 
 
 __version__ = '0.1'
@@ -45,6 +45,7 @@ def mlcausality(X,
     early_stop_rounds=50,
     use_minmaxscaler01=False,
     use_standardscaler=False,
+    normalize=False,
     y_bounds_error='ignore',
     y_bounds_violation_sign_drop=True,
     regressor='krr',
@@ -609,13 +610,39 @@ def mlcausality(X,
             lgbm_early_stopping_callback_unrestrict = lightgbm.early_stopping(early_stop_rounds, first_metric_only=True, verbose=lgbm_unrestrict_verbosity)
             regressor_fit_params_unrestrict.update({'callbacks':[lgbm_early_stopping_callback_unrestrict], 'eval_set':[(deepcopy(val_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]), deepcopy(val_sw_reshape_unrestrict[:, -data_scaled.shape[1]]))]})
     ### Pred y using only past values of y
-    model_restrict.fit(deepcopy(train_sw_reshape_restrict[:, :-y.shape[1]]), deepcopy(train_sw_reshape_restrict[:, -y.shape[1]]), **regressor_fit_params_restrict)
-    preds_restrict = model_restrict.predict(deepcopy(test_sw_reshape_restrict[:, :-y.shape[1]])).flatten()
+    if normalize == 'l1':
+        normalizer = Normalizer(norm='l1')
+        model_restrict.fit(normalizer.fit_transform(deepcopy(train_sw_reshape_restrict[:, :-y.shape[1]])), deepcopy(train_sw_reshape_restrict[:, -y.shape[1]]), **regressor_fit_params_restrict)
+        preds_restrict = model_restrict.predict(normalizer.fit_transform(deepcopy(test_sw_reshape_restrict[:, :-y.shape[1]]))).flatten()
+    elif ((normalize == 'l2') or (normalize is True)):
+        normalizer = Normalizer(norm='l2')
+        model_restrict.fit(normalizer.fit_transform(deepcopy(train_sw_reshape_restrict[:, :-y.shape[1]])), deepcopy(train_sw_reshape_restrict[:, -y.shape[1]]), **regressor_fit_params_restrict)
+        preds_restrict = model_restrict.predict(normalizer.fit_transform(deepcopy(test_sw_reshape_restrict[:, :-y.shape[1]]))).flatten()
+    elif normalize == 'max':
+        normalizer = Normalizer(norm='max')
+        model_restrict.fit(normalizer.fit_transform(deepcopy(train_sw_reshape_restrict[:, :-y.shape[1]])), deepcopy(train_sw_reshape_restrict[:, -y.shape[1]]), **regressor_fit_params_restrict)
+        preds_restrict = model_restrict.predict(normalizer.fit_transform(deepcopy(test_sw_reshape_restrict[:, :-y.shape[1]]))).flatten()
+    else:
+        model_restrict.fit(deepcopy(train_sw_reshape_restrict[:, :-y.shape[1]]), deepcopy(train_sw_reshape_restrict[:, -y.shape[1]]), **regressor_fit_params_restrict)
+        preds_restrict = model_restrict.predict(deepcopy(test_sw_reshape_restrict[:, :-y.shape[1]])).flatten()
     #ytrue_restrict = test_sw_reshape_restrict[:, -1].flatten()
     if not return_restrict_only:
-        ### Pred y using past values of y and X    
-        model_unrestrict.fit(deepcopy(train_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]), deepcopy(train_sw_reshape_unrestrict[:, -data_scaled.shape[1]]), **regressor_fit_params_unrestrict)
-        preds_unrestrict = model_unrestrict.predict(deepcopy(test_sw_reshape_unrestrict[:, :-data_scaled.shape[1]])).flatten()
+        ### Pred y using past values of y and X
+        if normalize == 'l1':
+            normalizer = Normalizer(norm='l1')
+            model_unrestrict.fit(normalizer.fit_transform(deepcopy(train_sw_reshape_unrestrict[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape_unrestrict[:, -data_scaled.shape[1]]), **regressor_fit_params_unrestrict)
+            preds_unrestrict = model_unrestrict.predict(normalizer.fit_transform(deepcopy(test_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]))).flatten()
+        elif ((normalize == 'l2') or (normalize is True)):
+            normalizer = Normalizer(norm='l2')
+            model_unrestrict.fit(normalizer.fit_transform(deepcopy(train_sw_reshape_unrestrict[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape_unrestrict[:, -data_scaled.shape[1]]), **regressor_fit_params_unrestrict)
+            preds_unrestrict = model_unrestrict.predict(normalizer.fit_transform(deepcopy(test_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]))).flatten()
+        elif normalize == 'max':
+            normalizer = Normalizer(norm='l2')
+            model_unrestrict.fit(normalizer.fit_transform(deepcopy(train_sw_reshape_unrestrict[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape_unrestrict[:, -data_scaled.shape[1]]), **regressor_fit_params_unrestrict)
+            preds_unrestrict = model_unrestrict.predict(normalizer.fit_transform(deepcopy(test_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]))).flatten()
+        else:
+            model_unrestrict.fit(deepcopy(train_sw_reshape_unrestrict[:, :-data_scaled.shape[1]]), deepcopy(train_sw_reshape_unrestrict[:, -data_scaled.shape[1]]), **regressor_fit_params_unrestrict)
+            preds_unrestrict = model_unrestrict.predict(deepcopy(test_sw_reshape_unrestrict[:, :-data_scaled.shape[1]])).flatten()
         #ytrue_unrestrict = test_sw_reshape_unrestrict[:, -data_scaled.shape[1]].flatten()
     ### Transform preds and ytrue if transformations were originally applied
     ytrue = y[-preds_restrict.shape[0]:,[0]]
@@ -1011,8 +1038,8 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop
     import mlcausality
     import numpy as np
     import pandas as pd
-    data = np.random.random([1000,5])
-    z = mlcausality.loco_mlcausality(data=data,lags=[5,10],regressor='krr',regressor_params={'kernel':'rbf'})
+    data = np.random.random([500,5])
+    z =  mlcausality.loco_mlcausality(data, lags=[5,10], use_minmaxscaler23=True, logdiff=True, use_minmaxscaler01=True, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf'}, train_size=1)
     
     Parameters
     ----------
@@ -1166,6 +1193,7 @@ def multireg_mlcausality(data,
     early_stop_rounds=50,
     use_minmaxscaler01=False,
     use_standardscaler=False,
+    normalize=False,
     regressor='krr',
     regressor_params=None,
     regressor_fit_params=None,
@@ -1338,9 +1366,14 @@ def multireg_mlcausality(data,
     ### Handle early stopping
     if early_stop:
         regressor_fit_params.update({'eval_set':[(val_sw_reshape[:, :-data_scaled.shape[1]], val_sw_reshape[:, -data_scaled.shape[1]:])]})
-    ### Fit model and get preds    
-    model.fit(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]]), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
-    preds = model.predict(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]]))
+    ### Fit model and get preds
+    if normalize == 'l1':
+        normalizer = Normalizer(norm='l1')
+        model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
+        preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
+    else:
+        model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
+        preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
     if regressor.lower() == 'catboostregressor' and len(preds.shape) == 1:
         preds = preds.reshape(-1, 1)
     #ytrue = test_sw_reshape[:, -data_scaled.shape[1]:]
@@ -1414,13 +1447,8 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
     import mlcausality
     import numpy as np
     import pandas as pd
-    from sklearn.preprocessing import MinMaxScaler, Normalizer 
-    data = np.random.random([1000,5])
-    standardizer = MinMaxScaler()
-    normalizer = Normalizer()
-    data = standardizer.fit_transform(data)
-    #data = normalizer.fit_transform(data)
-    z =  mlcausality.multiloco_mlcausality(data, lags=[5,20], use_minmaxscaler23=False, logdiff=False, use_standardscaler=False, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf'}, train_size=1)
+    data = np.random.random([500,5])
+    z =  mlcausality.multiloco_mlcausality(data, lags=[5,10], use_minmaxscaler23=True, logdiff=True, use_minmaxscaler01=True, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf'}, train_size=1)
     
     Parameters
     ----------
