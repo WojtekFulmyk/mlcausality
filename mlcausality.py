@@ -36,13 +36,14 @@ def pretty_dict(d, indent=0, init_message=None):
 def mlcausality(X,
     y,
     lag,
-    use_minmaxscaler=True,
-    logdiff=True,
+    use_minmaxscaler23=False,
+    logdiff=False,
     split=None,
     train_size=1,
     early_stop_frac=0.0,
     early_stop_min_samples=1000,
     early_stop_rounds=50,
+    use_minmaxscaler01=False,
     use_standardscaler=False,
     y_bounds_error='ignore',
     y_bounds_violation_sign_drop=True,
@@ -78,27 +79,35 @@ def mlcausality(X,
     testing whether the inclusion of the lags of all the features in X improves the prediction of 
     the first column of y.
     
+    returns a dict with elements that depends on the parameters selected.
+    
+    Example usage:
+    import mlcausality
+    import numpy as np
+    import pandas as pd
+    X = np.random.random([1000,5])
+    y = np.random.random([1000,4])
+    z = mlcausality.mlcausality(X=X,y=y,lag=5)
+    
     Parameters
     ----------
     X : array-like of shape (n_samples, n_features) or None. This has only been tested to work 
     with pandas.Series, pandas.DataFrame or numpy arrays for single or multiple feature data.
     For single feature only, a list or a tuple of length n_samples can also be passed.
     
-    y : array-like of shape (n_samples,). This has only been tested to work with 
-    pandas.Series, pandas.DataFrame, numpy arrays, lists, or tuples. This is the target
+    y : array-like of shape (n_samples,) or (n_samples, n_features). This has only been tested to 
+    work with pandas.Series, pandas.DataFrame, numpy arrays, lists, or tuples. This is the target
     series on which to perform Granger analysis.
     
     lag : int. The number of lags to test Granger causality for.
     
-    use_minmaxscaler : bool. If True, data is scaled to the range [2,3]. This is really if
+    use_minmaxscaler23 : bool. If True, data is scaled to the range [2,3]. This is useful if
     any of the time series can be zero or negative and a logdiff (as described below) has 
     to be taken. If your data has zeros or negative values or if you do not know what
     you are doing, keep this as True.
     
-    logdiff: bool. Whether to take a log difference of the time series. For most regressors,
-    such as tree-based regressors that cannot extrapolate, you want to set this to True, 
-    unless your dataset will not require extrapolation to predict the Test set.
-    Note that logdiff is applied after the train, val and test splits and that each
+    logdiff: bool. Whether to take a log difference of the time series.
+    Note that logdiff is applied after the train, val and test splits are taken and that each
     of these datasets will lose an observation as a result of the logdiff operation.
     In consequence, len(test) - lag - 1 predictions will be made for both the 
     restricted and unrestricted models.
@@ -122,19 +131,20 @@ def mlcausality(X,
     training set size of 0.9*0.7*1000 = 630, a validation set size 
     of 0.1*0.7*1000 = 70, and a test set size of 0.3*1000 = 300.
     Note that each of these sets will further lose one observation if logdiff
-    (described above) is set to True.
+    (described above) is set to True. If train_size==1 and split==None then
+    the train and test sets are identical and equal to the entire dataset.
     
     early_stop_frac : float between [0,1). The fraction of training data to 
-    use for early stopping if there is a sufficient number of observations and 
+    use for early stopping if there is a sufficient number of observations and the 
     regressor (described below) is one of 'catboostregressor', 'xgbregressor', 
-    or 'lgbmregressor'. Note that if regressor is set to an instance of
-    'catboostregressor', 'xgbregressor', or 'lgbmregressor', or a list composed
-    of these strings, or to any other string, early_stop_frac has no effect. By
-    enough observations what is meant is that early stopping will happen if
+    or 'lgbmregressor'. Note that if the regressor is set to a string other than
+    'catboostregressor', 'xgbregressor', or 'lgbmregressor' then early_stop_frac 
+    has no effect. The "sufficient number of observations" criteria is defined as 
+    follows: early stopping will happen if 
     early_stop_frac*len(train) - lags - 1 >= early_stop_min_samples
-    where len(train) is the length of the training set (after logdiff if applied)
-    and early_stop_min_samples is described below. If you do not want to use
-    early stopping, set this to 0.0, which is the default.
+    where len(train) is the length of the training set (after logdiff if logdiff 
+    is applied) and early_stop_min_samples is as described below. If you do not 
+    want to use early stopping, set this to 0.0, which is the default.
     
     early_stop_min_samples : int. Early stopping minimum validation dataset size.
     For more information, read early_stop_frac above.
@@ -143,11 +153,11 @@ def mlcausality(X,
     more information, read the relevant documentation for CatBoost, LightGBM and/or
     XGBoost.
     
-    use_standardscaler : bool. If True, applies the fit_transform method from sklearn's 
-    StandardScaler to the training data and transform to the test and validation data 
-    (if early stopping is used and there is a validation set). This is not needed if 
-    a tree-based regressor is used, but it may be useful if regressors that are sensitive
-    to feature magnitudes (such as SVR) are chosen instead.
+    use_standardscaler : bool. If True, applies the 'fit_transform' method from sklearn's 
+    StandardScaler to the training data and the 'transform' method to the test and validation 
+    data  (if early stopping is used and there is a validation set). This is not needed for 
+    tree-based regressors, but it may be useful if regressors that are sensitive
+    to feature magnitudes (such as SVR or kernel ridge) are chosen instead.
     
     y_bounds_error : one of 'warn', 'raise' or 'ignore'. If set to 'warn' and  
     min(test) < min(train) or max(test) > max(train), then a warning will be printed.
@@ -160,9 +170,102 @@ def mlcausality(X,
     
     y_bounds_violation_sign_drop : bool. If True, observations in the test set
     whose true values are outside [min(train), max(train)] are not used when calculating 
-    the test statistic and p-values of the sign and Wilcoxon tests (note: this also requires
-    y_bounds_error to not be set to 'raise'). If False, then the sign and Wilcoxon test statistics 
-    and p-values are calculated using all observations in the test set.
+    the test statistics and p-values of the sign and Wilcoxon tests (note: this also requires
+    y_bounds_error to not be set to 'raise'). If False, then the sign and Wilcoxon test 
+    statistics and p-values are calculated using all observations in the test set.
+    
+    regressor : string, or list of strings of length 2. If a string, it is the regressor
+    used for both the restricted and unrestricted models. If a list of strings, the first
+    string in the list is the regressor for the restricted model, and the second one is
+    the regressor for the unrestricted model. Popular regressors include:
+        - 'krr' : kernel ridge regressor
+        - 'catboostregressor' : CatBoost regressor
+        - 'xgbregressor' : XGBoost regressor
+        - 'lgbmregressor' : LightGBM regressor
+        - 'randomforestregressor' : random forest regressor
+        - 'cuml_randomforestregressor' : random forest regressor using the cuML library
+        - 'linearregression' : linear regressor
+        - 'classic' : linear regressor in the classic sense (train == test == all data)
+        - 'svr' : Epsilon Support Vector Regression
+        - 'nusvr' : Nu Support Vector Regression
+        - 'cuml_svr' : Epsilon Support Vector Regression using the cuML library
+        - 'knn' : Regression based on k-nearest neighbors
+    Note that you must have the correct library installed in order to use these regressors
+    with mlcausality. For instance, if you need to use the 'xgbregressor', you must have
+    XGBoost installed, while if you need to use 'krr', you must have scikit-learn installed.
+    Note that your choice of regressor may affect or override the choices you make for other
+    parameters. For instance, choosing regressor='classic' overrides your choice for
+    'train_size' because in classic Granger causality the test set is equal to the training
+    set.
+    
+    regressor_params : dict, list of 2 dicts, or None. These are the parameters with which the
+    regressor is initialized. For instance, if you want to use the 'rbf' kernel with kernel ridge,
+    you could use regressor_params={'regressor_params':{'kernel':'rbf'}}. A list of 2 dicts 
+    provides a separate set of parameters for the restricted and unrestricted models respectively.
+    
+    regressor_fit_params : dict, list of 2 dicts, or None. These are the parameters used with the
+    regressor's fit method.
+    
+    check_model_type_match : one of 'warn', 'raise' or 'ignore'. Checks whether the regressors
+    for the restricted and unrestricted models are identical. Note that the matching is done
+    on the strings in the 'regressor' list, if a list of 2 strings is suppplied. So, for instance,
+    if regressor=['krr','kernelridge'] and check_model_type_match='raise' then an error will be
+    raised even though 'krr' is an alias for 'kernelridge'. This parameter has no effect if
+    'regressor' is a string instead of a list of 2 strings.
+    
+    ftest : bool. Whether to perform an f-test identical to the one done in classical Granger 
+    causality. This really only makes sense if regressor='classical' or regressor='linear.'
+    
+    normality_tests : bool. Whether to perform normality tests on the errors of the restricted
+    and unrestricted models. Setting this to True will cause the Shapiro-Wilk, the Anderson-Darling,
+    and the Jarque-Bera test statistics and p-values to be calculated and reported.
+    
+    acorr_tests : bool. Whether to perform autocorrelation tests on the errors. Setting this to 
+    True will cause the Durbin-Watson and Ljung-Box test statistics and p-values to be 
+    calculated and reported.
+    
+    return_restrict_only : bool. If True then only the restricted model's predictions,
+    errors etc. are returned, and the unrestricted model's corresponding values are not returned.
+    This is useful for performance purposes if the mlcausality() function is used in a loop and 
+    the unrestricted values do not have to be reported in every loop run. If you do not know
+    what you are doing, set this to False.
+    
+    return_inside_bounds_mask : bool. Whether to return a mask that indicates whether 
+    the label value in the test set is within the [min,max] range of the training set.
+    This could be useful for some models that do not extrapolate well, for instance, 
+    tree-based models like random forests.
+    
+    return_kwargs_dict : bool. Whether to return a dict of all kwargs passed to
+    mlcausality().
+    
+    return_preds : bool. Whether to return the predictions of the models. If 
+    return_preds=True and return_restrict_only=True, then only the predictions of the
+    restricted model will be returned.
+    
+    return_errors : bool. Whether to return the errors of the models. If 
+    return_errors=True and return_restrict_only=True, then only the errors of the
+    restricted model will be returned.
+    
+    return_nanfilled : bool. Whether to return preds and errors with nan values in the vector
+    corresponding to the positions of the input data that were not in the test set. This ensures
+    that the predictions vector, for example, has the exact same number of observations as 
+    the input data. If False then the predictions vector could be shorter than the total amount
+    of data if the test set contains only a subset of the entire dataset.
+    
+    return_models : bool. If True instances of the fitted models will be returned.
+    
+    return_scalers : bool. If True fitted instances of MinMaxScaler() and/or StandardScaler()
+    will be returned if use_minmaxscaler23 and/or use_standardscaler are also True.
+    
+    return_summary_df : bool. Whether to return a summary of the return in a pandas.DataFrame
+    format.
+    
+    kwargs_in_summary_df : bool. If this is True and return_summary_df=True then the 
+    kwargs passed to mlcausality() will be returned in the summary pandas.DataFrame
+    
+    pretty_print : bool. Whether a pretty print of the summary should be outputted to 
+    stdout following a call to mlcausality(). If set to False then mlcausality() will
+    run silently unless a warning needs to be printed or an exception raised.
     """
     # Store and parse the dict of passed variables
     if return_kwargs_dict:
@@ -230,24 +333,23 @@ def mlcausality(X,
         if return_restrict_only:
             raise ValueError('If reggressor is classic, return_restrict_only cannot be True')
         regressor = 'linearregression'
-        X = np.concatenate([X,X])
-        y = np.concatenate([y,y])
-        train_size = 0.5
+        train_size = 1
         split_override = True
-        use_minmaxscaler = False
+        use_minmaxscaler23 = False
         logdiff = False
+        use_minmaxscaler01 = False
         use_standardscaler = False
         y_bounds_error = 'ignore'
         y_bounds_violation_sign_drop = False
         acorr_tests = True
     #data_raw = np.concatenate([y, X],axis=1)
-    if use_minmaxscaler:
-        minmaxscalers = {}
-        minmaxscalers['y'] = MinMaxScaler(feature_range=(2, 3))
-        y_transformed = minmaxscalers['y'].fit_transform(y)
+    if use_minmaxscaler23:
+        minmaxscalers23 = {}
+        minmaxscalers23['y'] = MinMaxScaler(feature_range=(2, 3))
+        y_transformed = minmaxscalers23['y'].fit_transform(y)
         if not return_restrict_only:
-            minmaxscalers['X'] = MinMaxScaler(feature_range=(2, 3))
-            X_transformed = minmaxscalers['X'].fit_transform(X)
+            minmaxscalers23['X'] = MinMaxScaler(feature_range=(2, 3))
+            X_transformed = minmaxscalers23['X'].fit_transform(X)
             data_scaled = np.concatenate([y_transformed, X_transformed],axis=1)
         else:
             data_scaled = y_transformed
@@ -426,6 +528,21 @@ def mlcausality(X,
         test_integ = test
         if early_stop:
             val_integ = val
+    ### MinMaxScaler01
+    if use_minmaxscaler01:
+        minmaxscalers01 = {}
+        minmaxscalers01['y'] = MinMaxScaler(feature_range=(0, 1))
+        train_integ[:,:y.shape[1]] = minmaxscalers01['y'].fit_transform(train_integ[:,:y.shape[1]])
+        test_integ[:,:y.shape[1]] = minmaxscalers01['y'].transform(test_integ[:,:y.shape[1]])
+        if early_stop:
+            val_integ[:,:y.shape[1]] = minmaxscalers01['y'].transform(val_integ[:,:y.shape[1]])
+        if not return_restrict_only:
+            minmaxscalers01['X'] = MinMaxScaler(feature_range=(0, 1))
+            train_integ[:,y.shape[1]:] = minmaxscalers01['X'].fit_transform(train_integ[:,y.shape[1]:])
+            test_integ[:,y.shape[1]:] = minmaxscalers01['X'].transform(test_integ[:,y.shape[1]:])
+            if early_stop:
+                val_integ[:,:y.shape[1]] = minmaxscalers01['y'].transform(val_integ[:,:y.shape[1]])
+                val_integ[:,y.shape[1]:] = minmaxscalers01['X'].transform(val_integ[:,y.shape[1]:])
     ### Standard scaler
     if use_standardscaler:
         standardscalers = {}
@@ -502,6 +619,21 @@ def mlcausality(X,
         #ytrue_unrestrict = test_sw_reshape_unrestrict[:, -data_scaled.shape[1]].flatten()
     ### Transform preds and ytrue if transformations were originally applied
     ytrue = y[-preds_restrict.shape[0]:,[0]]
+    if use_minmaxscaler01:
+        if y.shape[0] > 1:
+            preds_restrict_for_minmaxscaler01 = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
+            if not return_restrict_only:
+                preds_unrestrict_for_minmaxscaler01 = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
+        else:
+            preds_restrict_for_minmaxscaler01 = preds_restrict.reshape(-1, 1)
+            if not return_restrict_only:
+                preds_unrestrict_for_minmaxscaler01 = preds_unrestrict.reshape(-1, 1)
+        preds_restrict = minmaxscalers01['y'].inverse_transform(preds_restrict_for_minmaxscaler01)[:,0].flatten()
+        if not return_restrict_only:
+            preds_unrestrict = minmaxscalers01['y'].inverse_transform(preds_unrestrict_for_minmaxscaler01)[:,0].flatten()
+        #ytrue_restrict = minmaxscalers01['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
+        #if not return_restrict_only:
+        #   ytrue_unrestrict = minmaxscalers01['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
     if use_standardscaler:
         if y.shape[0] > 1:
             preds_restrict_for_standardscaler = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
@@ -531,21 +663,21 @@ def mlcausality(X,
         #ytrue_restrict = ytrue_restrict.reshape(-1, 1)
         #if not return_restrict_only:
         #   ytrue_unrestrict = ytrue_unrestrict.reshape(-1, 1)
-    if use_minmaxscaler:
+    if use_minmaxscaler23:
         if y.shape[0] > 1:
-            preds_restrict_for_minmaxscaler = np.concatenate([preds_restrict.reshape(-1, 1),np.ones_like(y[:preds_restrict.shape[0],1:])*np.mean(minmaxscalers['y'].feature_range)], axis=1)
+            preds_restrict_for_minmaxscaler = np.concatenate([preds_restrict.reshape(-1, 1),np.ones_like(y[:preds_restrict.shape[0],1:])*np.mean(minmaxscalers23['y'].feature_range)], axis=1)
             if not return_restrict_only:
-                preds_unrestrict_for_minmaxscaler = np.concatenate([preds_unrestrict.reshape(-1, 1),np.ones_like(y[:preds_unrestrict.shape[0],1:])*np.mean(minmaxscalers['y'].feature_range)], axis=1)
+                preds_unrestrict_for_minmaxscaler = np.concatenate([preds_unrestrict.reshape(-1, 1),np.ones_like(y[:preds_unrestrict.shape[0],1:])*np.mean(minmaxscalers23['y'].feature_range)], axis=1)
         else:
             preds_restrict_for_minmaxscaler = preds_restrict.reshape(-1, 1)
             if not return_restrict_only:
                 preds_unrestrict_for_minmaxscaler = preds_unrestrict.reshape(-1, 1)
-        preds_restrict = minmaxscalers['y'].inverse_transform(preds_restrict_for_minmaxscaler)[:,[0]]
+        preds_restrict = minmaxscalers23['y'].inverse_transform(preds_restrict_for_minmaxscaler)[:,[0]]
         if not return_restrict_only:
-            preds_unrestrict = minmaxscalers['y'].inverse_transform(preds_unrestrict_for_minmaxscaler)[:,[0]]
-        #ytrue_restrict = minmaxscalers['y'].inverse_transform(ytrue_restrict)
+            preds_unrestrict = minmaxscalers23['y'].inverse_transform(preds_unrestrict_for_minmaxscaler)[:,[0]]
+        #ytrue_restrict = minmaxscalers23['y'].inverse_transform(ytrue_restrict)
         #if not return_restrict_only:
-        #   ytrue_unrestrict = minmaxscalers['y'].inverse_transform(ytrue_unrestrict)
+        #   ytrue_unrestrict = minmaxscalers23['y'].inverse_transform(ytrue_unrestrict)
     errors_restrict = preds_restrict - ytrue
     if not return_restrict_only:
         errors_unrestrict = preds_unrestrict - ytrue
@@ -651,14 +783,20 @@ def mlcausality(X,
     if return_inside_bounds_mask:
         return_dict.update({'inside_bounds_mask':inside_bounds_mask})
     if return_scalers:
-        if use_minmaxscaler:
-            return_dict.update({'scalers':{'minmaxscalers':minmaxscalers}})
+        if use_minmaxscaler01:
+            return_dict.update({'scalers':{'minmaxscalers01':minmaxscalers01}})
+            if use_minmaxscaler23:
+                return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
+                if use_standardscaler:
+                    return_dict['scalers'].update({'standardscalers':standardscalers})
+            elif use_standardscaler:
+                return_dict['scalers'].update({'standardscalers':standardscalers})
+        elif use_minmaxscaler23:
+            return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
             if use_standardscaler:
                 return_dict['scalers'].update({'standardscalers':standardscalers})
         elif use_standardscaler:
             return_dict.update({'scalers':{'standardscalers':standardscalers}})
-            if use_minmaxscaler:
-                return_dict['scalers'].update({'minmaxscalers':minmaxscalers})
     if pretty_print:
         pretty_dict(return_dict['summary'], init_message='########## SUMMARY ##########')
     return return_dict
@@ -671,7 +809,43 @@ def mlcausality(X,
 
 
 
-def mlcausality_splits_loop(splits, X=None, y=None, lag=None, loop_position=0, **kwargs):
+def mlcausality_splits_loop(splits, X=None, y=None, lag=None, **kwargs):
+    """
+    This is a utility function that runs mlcausality() for a list of splits.
+    
+    Example usage:
+    import mlcausality
+    import numpy as np
+    import pandas as pd
+    from sklearn.model_selection import TimeSeriesSplit
+    X = np.random.random([1000,5])
+    y = np.random.random([1000,4])
+    tscv = TimeSeriesSplit()
+    splits = list(tscv.split(X))
+    z = mlcausality.mlcausality_splits_loop(splits=splits,X=X,y=y,lag=5)
+    
+    returns : a pandas.DataFrame with each row corresponding to a particular train-test split
+    
+    Parameters
+    ----------
+    splits : list of lists, or list of tuples, where the first element in the tuple are the index
+    numbers for the train set and the second element in the tuple are the index numbers for the 
+    test set. For instance, if tscv = TimeSeriesSplit(), then splits can be set to 
+    list(tscv.split(X)).
+
+    X : array-like of shape (n_samples, n_features) or None. This has only been tested to work 
+    with pandas.Series, pandas.DataFrame or numpy arrays for single or multiple feature data.
+    For single feature only, a list or a tuple of length n_samples can also be passed.
+    
+    y : array-like of shape (n_samples,) or (n_samples, n_features). This has only been tested to 
+    work with pandas.Series, pandas.DataFrame, numpy arrays, lists, or tuples. This is the target
+    series on which to perform Granger analysis.
+    
+    lag : int. The number of lags to test Granger causality for.
+    
+    **kwargs : any other keyword arguments one might want to pass to mlcausality(), such as 
+    regressor, or regressor_fit_params, etc.
+    """
     if X is not None:
         kwargs.update({'X':X})
     if y is not None:
@@ -700,6 +874,41 @@ def mlcausality_splits_loop(splits, X=None, y=None, lag=None, loop_position=0, *
 
 
 def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop=True, ftest=False, **kwargs):
+    """
+    This function takes several time series in a single 'data' parameter as an input and 
+    checks for Granger causal relationships between all bivariate combinations of those
+    time series. Internally, all relationships are are tested in a loop using mlcausality()
+    
+    Returns : pandas.DataFrame
+    
+    Example usage:
+    import mlcausality
+    import numpy as np
+    import pandas as pd
+    from sklearn.model_selection import TimeSeriesSplit
+    data = np.random.random([1000,5])
+    z = mlcausality.bivariate_mlcausality(data=data,lags=[5,10],regressor='krr',regressor_params={'kernel':'rbf'})
+    
+    Parameters
+    ----------
+    data : array-like of shape (n_samples, n_features). Contains all the time series for which
+    to calculate bivariate Granger causality relationships.
+    
+    lags : list of ints. The number of lags to test Granger causality for. Multiple lag orders
+    can be tested by including more than one int in the list.
+    
+    permute_list : list or None. To calculate bivariate connections for only a subset of the 
+    time-series include the column indicies to use in this parameter. 
+    
+    y_bounds_violation_sign_drop : bool. Whether to rows where the outcome variables in the 
+    test set are outside the boundaries of the variables in the training set.
+    
+    ftest : bool. Whether to calculate the F-test (only useful if the regressor is 
+    'linear' or 'classic')
+    
+    **kwargs : any other keyword arguments one might want to pass to mlcausality(), such as 
+    regressor, or regressor_fit_params, etc.
+    """
     if 'y' in kwargs:
         del kwargs['y']
     if 'X' in kwargs:
@@ -790,6 +999,56 @@ def bivariate_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
 
 
 def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop=True, ftest=False, return_pvalue_matrix_only=False, pvalue_matrix_type='sign_test', **kwargs):
+    """
+    This function takes several time series in a single 'data' parameter as an input and 
+    checks for Granger causal relationships by Leaving One Column Out (loco) for the restricted 
+    model. Internally, all relationships are are tested in a loop using mlcausality()
+    
+    Returns : pandas.DataFrame if return_pvalue_matrix_only=False else a numpy array similar to 
+    an adjacency matrix except with pvalues for the test.
+    
+    Example usage:
+    import mlcausality
+    import numpy as np
+    import pandas as pd
+    data = np.random.random([1000,5])
+    z = mlcausality.loco_mlcausality(data=data,lags=[5,10],regressor='krr',regressor_params={'kernel':'rbf'})
+    
+    Parameters
+    ----------
+    data : array-like of shape (n_samples, n_features). Contains all the time series for which
+    to calculate bivariate Granger causality relationships.
+    
+    lags : list of ints. The number of lags to test Granger causality for. Multiple lag orders
+    can be tested by including more than one int in the list.
+    
+    permute_list : list or None. To calculate bivariate connections for only a subset of the 
+    time-series include the column indicies to use in this parameter. 
+    
+    y_bounds_violation_sign_drop : bool. Whether to rows where the outcome variables in the 
+    test set are outside the boundaries of the variables in the training set.
+    
+    ftest : bool. Whether to calculate the F-test (only useful if the regressor is 
+    'linear' or 'classic')
+    
+    return_pvalue_matrix_only : bool. If True instead of outputing a pandas.Dataframe 
+    a numpy array similar to an adjacency matrix except with pvalues for the test is returned.
+    Note that, in order to have the same format as an adjacency matrix where the row variable 
+    Granger causes the column variable it is most logical to set 'lags' to a list that only
+    contains one lag value. The code will work if 'lags' is a list of more than one lag order
+    but the user would then have to account for the order of the entries in the resulting 
+    matrix. return_pvalue_matrix_only is provided in order to make loco_mlcausality run 
+    faster and to output only the information that is most important. If performance is 
+    not really important to you or you do not know what you are doing then set 
+    return_pvalue_matrix_only=False (the default).
+    
+    pvalue_matrix_type : either 'sign_test' or 'wilcoxon'. Indicates which pvalues should 
+    be included in the pvalue matrix if return_pvalue_matrix_only=True. By default the
+    pvalues from the sign_test are returned.
+    
+    **kwargs : any other keyword arguments one might want to pass to mlcausality(), such as 
+    regressor, or regressor_fit_params, etc.
+    """
     if return_pvalue_matrix_only:
         lags = [lags[0]]
         permute_list = None
@@ -898,14 +1157,15 @@ def loco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop
 
 def multireg_mlcausality(data,
     lag,
-    use_minmaxscaler=True,
-    logdiff=True,
+    use_minmaxscaler23=False,
+    logdiff=False,
     split=None,
     train_size=1,
     early_stop_frac=0.0,
     early_stop_min_samples=1000,
     early_stop_rounds=50,
-    use_standardscaler=True,
+    use_minmaxscaler01=False,
+    use_standardscaler=False,
     regressor='krr',
     regressor_params=None,
     regressor_fit_params=None,
@@ -954,10 +1214,10 @@ def multireg_mlcausality(data,
         split_override = True
     else:
         split_override = False
-    if use_minmaxscaler:
-        minmaxscalers = {}
-        minmaxscalers['data'] = MinMaxScaler(feature_range=(2, 3))
-        data_scaled = minmaxscalers['data'].fit_transform(data)
+    if use_minmaxscaler23:
+        minmaxscalers23 = {}
+        minmaxscalers23['data'] = MinMaxScaler(feature_range=(2, 3))
+        data_scaled = minmaxscalers23['data'].fit_transform(data)
     else:
         data_scaled = data
     if not split_override and split is not None:
@@ -1045,6 +1305,14 @@ def multireg_mlcausality(data,
         test_integ = test
         if early_stop:
             val_integ = val
+    ### MinMaxScaler01
+    if use_minmaxscaler01:
+        minmaxscalers01 = {}
+        minmaxscalers01['data'] = MinMaxScaler(feature_range=(0, 1))
+        train_integ = minmaxscalers01['data'].fit_transform(train_integ)
+        test_integ = minmaxscalers01['data'].transform(test_integ)
+        if early_stop:
+            val_integ = minmaxscalers01['data'].transform(val_integ)
     ### Standard scaler
     if use_standardscaler:
         standardscalers = {}
@@ -1078,15 +1346,18 @@ def multireg_mlcausality(data,
     #ytrue = test_sw_reshape[:, -data_scaled.shape[1]:]
     ### Transform preds and ytrue if transformations were originally applied
     ytrue = data[-preds.shape[0]:]
+    if use_minmaxscaler01:
+        preds = minmaxscalers01['data'].inverse_transform(preds)
+        #ytrue = minmaxscalers01['data'].inverse_transform(ytrue)
     if use_standardscaler:
         preds = standardscalers['data'].inverse_transform(preds)
         #ytrue = standardscalers['data'].inverse_transform(ytrue)
     if logdiff:
         preds = (np.exp(preds)*(test[lag:-1]))
         #ytrue = (np.exp(ytrue)*(test[lag:-1]))
-    if use_minmaxscaler:
-        preds = minmaxscalers['data'].inverse_transform(preds)
-        #ytrue = minmaxscalers['data'].inverse_transform(ytrue)
+    if use_minmaxscaler23:
+        preds = minmaxscalers23['data'].inverse_transform(preds)
+        #ytrue = minmaxscalers23['data'].inverse_transform(ytrue)
     return_dict = {'summary':{'lag':lag, 'train_obs':train_integ[:,0].shape[0], 'effective_train_obs':train_integ[lag:,0].shape[0], 'test_obs':test_integ[:,0].shape[0], 'effective_test_obs':test_integ[lag:,0].shape[0]}}
     if return_summary_df:
         return_dict.update({'summary_df': pd.json_normalize(return_dict['summary'])})
@@ -1108,14 +1379,20 @@ def multireg_mlcausality(data,
         return_scalers = True
         return_dict.update({'model':model})
     if return_scalers:
-        if use_minmaxscaler:
-            return_dict.update({'scalers':{'minmaxscalers':minmaxscalers}})
+        if use_minmaxscaler01:
+            return_dict.update({'scalers':{'minmaxscalers01':minmaxscalers01}})
+            if use_minmaxscaler23:
+                return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
+                if use_standardscaler:
+                    return_dict['scalers'].update({'standardscalers':standardscalers})
+            if use_standardscaler:
+                return_dict['scalers'].update({'standardscalers':standardscalers})
+        elif use_minmaxscaler23:
+            return_dict.update({'scalers':{'minmaxscalers23':minmaxscalers23}})
             if use_standardscaler:
                 return_dict['scalers'].update({'standardscalers':standardscalers})
         elif use_standardscaler:
             return_dict.update({'scalers':{'standardscalers':standardscalers}})
-            if use_minmaxscaler:
-                return_dict['scalers'].update({'minmaxscalers':minmaxscalers})
     return return_dict
 
 
@@ -1124,6 +1401,62 @@ def multireg_mlcausality(data,
 
 
 def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign_drop=True, return_pvalue_matrix_only=False, pvalue_matrix_type='sign_test', **kwargs):
+    """
+    This function takes several time series in a single 'data' parameter as an input and 
+    checks for Granger causal relationships by multiregression Leaving One Column Out (loco) 
+    for the restricted model. Internally, all relationships are are tested in a loop 
+    using multireg_mlcausality()
+    
+    Returns : pandas.DataFrame if return_pvalue_matrix_only=False else a numpy array similar to 
+    an adjacency matrix except with pvalues for the test.
+    
+    Example usage:
+    import mlcausality
+    import numpy as np
+    import pandas as pd
+    from sklearn.preprocessing import MinMaxScaler, Normalizer 
+    data = np.random.random([1000,5])
+    standardizer = MinMaxScaler()
+    normalizer = Normalizer()
+    data = standardizer.fit_transform(data)
+    #data = normalizer.fit_transform(data)
+    z =  mlcausality.multiloco_mlcausality(data, lags=[5,20], use_minmaxscaler23=False, logdiff=False, use_standardscaler=False, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf'}, train_size=1)
+    
+    Parameters
+    ----------
+    data : array-like of shape (n_samples, n_features). Contains all the time series for which
+    to calculate bivariate Granger causality relationships.
+    
+    lags : list of ints. The number of lags to test Granger causality for. Multiple lag orders
+    can be tested by including more than one int in the list.
+    
+    permute_list : list or None. To calculate bivariate connections for only a subset of the 
+    time-series include the column indicies to use in this parameter. 
+    
+    y_bounds_violation_sign_drop : bool. Whether to rows where the outcome variables in the 
+    test set are outside the boundaries of the variables in the training set.
+    
+    ftest : bool. Whether to calculate the F-test (only useful if the regressor is 
+    'linear' or 'classic')
+    
+    return_pvalue_matrix_only : bool. If True instead of outputing a pandas.Dataframe 
+    a numpy array similar to an adjacency matrix except with pvalues for the test is returned.
+    Note that, in order to have the same format as an adjacency matrix where the row variable 
+    Granger causes the column variable it is most logical to set 'lags' to a list that only
+    contains one lag value. The code will work if 'lags' is a list of more than one lag order
+    but the user would then have to account for the order of the entries in the resulting 
+    matrix. return_pvalue_matrix_only is provided in order to make loco_mlcausality run 
+    faster and to output only the information that is most important. If performance is 
+    not really important to you or you do not know what you are doing then set 
+    return_pvalue_matrix_only=False (the default).
+    
+    pvalue_matrix_type : either 'sign_test' or 'wilcoxon'. Indicates which pvalues should 
+    be included in the pvalue matrix if return_pvalue_matrix_only=True. By default the
+    pvalues from the sign_test are returned.
+    
+    **kwargs : any other keyword arguments one might want to pass to mlcausality(), such as 
+    regressor, or regressor_fit_params, etc.
+    """
     if return_pvalue_matrix_only:
         lags = [lags[0]]
         permute_list = None
