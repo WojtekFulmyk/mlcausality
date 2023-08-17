@@ -1516,8 +1516,8 @@ def multireg_mlcausality(data,
         preds = quantiletransformers['data'].inverse_transform(preds)
         #ytrue = quantiletransformers['data'].inverse_transform(ytrue)
     if use_powertransformer:
-        preds = powetransformers['data'].inverse_transform(preds)
-        #ytrue = powetransformers['data'].inverse_transform(ytrue)
+        preds = powertransformers['data'].inverse_transform(preds)
+        #ytrue = powertransformers['data'].inverse_transform(ytrue)
     if use_robustscaler:
         preds = robustscalers['data'].inverse_transform(preds)
         #ytrue = robustscalers['data'].inverse_transform(ytrue)
