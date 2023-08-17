@@ -1371,6 +1371,14 @@ def multireg_mlcausality(data,
         normalizer = Normalizer(norm='l1')
         model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
         preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
+    elif ((normalize == 'l2') or (normalize is True)):
+        normalizer = Normalizer(norm='l1')
+        model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
+        preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
+    elif normalize == 'max':
+        normalizer = Normalizer(norm='max')
+        model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
+        preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
     else:
         model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
         preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
@@ -1448,7 +1456,7 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
     import numpy as np
     import pandas as pd
     data = np.random.random([500,5])
-    z =  mlcausality.multiloco_mlcausality(data, lags=[5,10], use_minmaxscaler23=True, logdiff=True, use_minmaxscaler01=True, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf'}, train_size=1)
+    z =  mlcausality.multiloco_mlcausality(data, lags=[5,10], use_minmaxscaler23=False, logdiff=False, use_minmaxscaler01=True, normalize=True, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf', 'kernel_params':{'gamma':1.0}}, train_size=1)
     
     Parameters
     ----------
