@@ -45,7 +45,6 @@ def mlcausality(X,
     early_stop_rounds=50,
     use_robustscaler=False,
     use_powertransformer=False,
-    use_quantiletransformer=False,
     use_minmaxscaler01=False,
     use_standardscaler=False,
     normalize=False,
@@ -562,21 +561,6 @@ def mlcausality(X,
             if early_stop:
                 val_integ[:,:y.shape[1]] = powertransformers['y'].transform(val_integ[:,:y.shape[1]])
                 val_integ[:,y.shape[1]:] = powertransformers['X'].transform(val_integ[:,y.shape[1]:])
-    ### QuantileTransformer
-    if use_quantiletransformer:
-        quantiletransformers = {}
-        quantiletransformers['y'] = QuantileTransformer()
-        train_integ[:,:y.shape[1]] = quantiletransformers['y'].fit_transform(train_integ[:,:y.shape[1]])
-        test_integ[:,:y.shape[1]] = quantiletransformers['y'].transform(test_integ[:,:y.shape[1]])
-        if early_stop:
-            val_integ[:,:y.shape[1]] = quantiletransformers['y'].transform(val_integ[:,:y.shape[1]])
-        if not return_restrict_only:
-            quantiletransformers['X'] = QuantileTransformer()
-            train_integ[:,y.shape[1]:] = quantiletransformers['X'].fit_transform(train_integ[:,y.shape[1]:])
-            test_integ[:,y.shape[1]:] = quantiletransformers['X'].transform(test_integ[:,y.shape[1]:])
-            if early_stop:
-                val_integ[:,:y.shape[1]] = quantiletransformers['y'].transform(val_integ[:,:y.shape[1]])
-                val_integ[:,y.shape[1]:] = quantiletransformers['X'].transform(val_integ[:,y.shape[1]:])
     ### MinMaxScaler01
     if use_minmaxscaler01:
         minmaxscalers01 = {}
@@ -724,21 +708,6 @@ def mlcausality(X,
         #ytrue_restrict = minmaxscalers01['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
         #if not return_restrict_only:
         #   ytrue_unrestrict = minmaxscalers01['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
-    if use_quantiletransformer:
-        if y.shape[0] > 1:
-            preds_restrict_for_quantiletransformer = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
-            if not return_restrict_only:
-                preds_unrestrict_for_quantiletransformer = np.concatenate([preds_unrestrict.reshape(-1, 1),np.zeros_like(y[:preds_unrestrict.shape[0],1:])], axis=1)
-        else:
-            preds_restrict_for_quantiletransformer = preds_restrict.reshape(-1, 1)
-            if not return_restrict_only:
-                preds_unrestrict_for_quantiletransformer = preds_unrestrict.reshape(-1, 1)
-        preds_restrict = quantiletransformers['y'].inverse_transform(preds_restrict_for_quantiletransformer)[:,0].flatten()
-        if not return_restrict_only:
-            preds_unrestrict = quantiletransformers['y'].inverse_transform(preds_unrestrict_for_quantiletransformer)[:,0].flatten()
-        #ytrue_restrict = quantiletransformers['y'].inverse_transform(ytrue_restrict.reshape(-1, 1)).flatten()
-        #if not return_restrict_only:
-        #   ytrue_unrestrict = quantiletransformers['y'].inverse_transform(ytrue_unrestrict.reshape(-1, 1)).flatten()
     if use_powertransformer:
         if y.shape[0] > 1:
             preds_restrict_for_powertransformer = np.concatenate([preds_restrict.reshape(-1, 1),np.zeros_like(y[:preds_restrict.shape[0],1:])], axis=1)
@@ -914,8 +883,6 @@ def mlcausality(X,
             return_dict['scalers'].update({'robustscalers':robustscalers})
         if use_powertransformer:
             return_dict['scalers'].update({'powertransformers':powertransformers})
-        if use_quantiletransformer:
-            return_dict['scalers'].update({'quantiletransformers':quantiletransformers})
     if pretty_print:
         pretty_dict(return_dict['summary'], init_message='########## SUMMARY ##########')
     return return_dict
@@ -1285,7 +1252,6 @@ def multireg_mlcausality(data,
     early_stop_rounds=50,
     use_robustscaler=False,
     use_powertransformer=False,
-    use_quantiletransformer=False,
     use_minmaxscaler01=False,
     use_standardscaler=False,
     normalize=False,
@@ -1444,14 +1410,6 @@ def multireg_mlcausality(data,
         test_integ = powertransformers['data'].transform(test_integ)
         if early_stop:
             val_integ = powertransformers['data'].transform(val_integ)
-    ### QuantileTransformer
-    if use_quantiletransformer:
-        quantiletransformers = {}
-        quantiletransformers['data'] = QuantileTransformer()
-        train_integ = quantiletransformers['data'].fit_transform(train_integ)
-        test_integ = quantiletransformers['data'].transform(test_integ)
-        if early_stop:
-            val_integ = quantiletransformers['data'].transform(val_integ)
     ### MinMaxScaler01
     if use_minmaxscaler01:
         minmaxscalers01 = {}
@@ -1512,9 +1470,6 @@ def multireg_mlcausality(data,
     if use_minmaxscaler01:
         preds = minmaxscalers01['data'].inverse_transform(preds)
         #ytrue = minmaxscalers01['data'].inverse_transform(ytrue)
-    if use_quantiletransformer:
-        preds = quantiletransformers['data'].inverse_transform(preds)
-        #ytrue = quantiletransformers['data'].inverse_transform(ytrue)
     if use_powertransformer:
         preds = powertransformers['data'].inverse_transform(preds)
         #ytrue = powertransformers['data'].inverse_transform(ytrue)
@@ -1559,8 +1514,6 @@ def multireg_mlcausality(data,
             return_dict['scalers'].update({'robustscalers':robustscalers})
         if use_powertransformer:
             return_dict['scalers'].update({'powertransformers':powertransformers})
-        if use_quantiletransformer:
-            return_dict['scalers'].update({'quantiletransformers':quantiletransformers})
     return return_dict
 
 
