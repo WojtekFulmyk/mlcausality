@@ -544,7 +544,6 @@ def mlcausality(X,
             train_integ[:,y.shape[1]:] = robustscalers['X'].fit_transform(train_integ[:,y.shape[1]:])
             test_integ[:,y.shape[1]:] = robustscalers['X'].transform(test_integ[:,y.shape[1]:])
             if early_stop:
-                val_integ[:,:y.shape[1]] = robustscalers['y'].transform(val_integ[:,:y.shape[1]])
                 val_integ[:,y.shape[1]:] = robustscalers['X'].transform(val_integ[:,y.shape[1]:])
     ### PowerTransformer
     if use_powertransformer:
@@ -559,7 +558,6 @@ def mlcausality(X,
             train_integ[:,y.shape[1]:] = powertransformers['X'].fit_transform(train_integ[:,y.shape[1]:])
             test_integ[:,y.shape[1]:] = powertransformers['X'].transform(test_integ[:,y.shape[1]:])
             if early_stop:
-                val_integ[:,:y.shape[1]] = powertransformers['y'].transform(val_integ[:,:y.shape[1]])
                 val_integ[:,y.shape[1]:] = powertransformers['X'].transform(val_integ[:,y.shape[1]:])
     ### MinMaxScaler01
     if use_minmaxscaler01:
@@ -574,22 +572,20 @@ def mlcausality(X,
             train_integ[:,y.shape[1]:] = minmaxscalers01['X'].fit_transform(train_integ[:,y.shape[1]:])
             test_integ[:,y.shape[1]:] = minmaxscalers01['X'].transform(test_integ[:,y.shape[1]:])
             if early_stop:
-                val_integ[:,:y.shape[1]] = minmaxscalers01['y'].transform(val_integ[:,:y.shape[1]])
                 val_integ[:,y.shape[1]:] = minmaxscalers01['X'].transform(val_integ[:,y.shape[1]:])
     ### Standard scaler
     if use_standardscaler:
         standardscalers = {}
-        standardscalers['y'] = StandardScaler(copy=False)
+        standardscalers['y'] = StandardScaler()
         train_integ[:,:y.shape[1]] = standardscalers['y'].fit_transform(train_integ[:,:y.shape[1]])
         test_integ[:,:y.shape[1]] = standardscalers['y'].transform(test_integ[:,:y.shape[1]])
         if early_stop:
             val_integ[:,:y.shape[1]] = standardscalers['y'].transform(val_integ[:,:y.shape[1]])
         if not return_restrict_only:
-            standardscalers['X'] = StandardScaler(copy=False)
+            standardscalers['X'] = StandardScaler()
             train_integ[:,y.shape[1]:] = standardscalers['X'].fit_transform(train_integ[:,y.shape[1]:])
             test_integ[:,y.shape[1]:] = standardscalers['X'].transform(test_integ[:,y.shape[1]:])
             if early_stop:
-                val_integ[:,:y.shape[1]] = standardscalers['y'].transform(val_integ[:,:y.shape[1]])
                 val_integ[:,y.shape[1]:] = standardscalers['X'].transform(val_integ[:,y.shape[1]:])
     ### y bounds error
     if y_bounds_error == 'raise':
@@ -1421,7 +1417,7 @@ def multireg_mlcausality(data,
     ### Standard scaler
     if use_standardscaler:
         standardscalers = {}
-        standardscalers['data'] = StandardScaler(copy=False)
+        standardscalers['data'] = StandardScaler()
         train_integ = standardscalers['data'].fit_transform(train_integ)
         test_integ = standardscalers['data'].transform(test_integ)
         if early_stop:
@@ -1449,7 +1445,7 @@ def multireg_mlcausality(data,
         model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
         preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
     elif ((normalize == 'l2') or (normalize is True)):
-        normalizer = Normalizer(norm='l1')
+        normalizer = Normalizer(norm='l2')
         model.fit(normalizer.fit_transform(deepcopy(train_sw_reshape[:, :-data_scaled.shape[1]])), deepcopy(train_sw_reshape[:, -data_scaled.shape[1]:]), **regressor_fit_params)
         preds = model.predict(normalizer.fit_transform(deepcopy(test_sw_reshape[:, :-data_scaled.shape[1]])))
     elif normalize == 'max':
@@ -1536,7 +1532,8 @@ def multiloco_mlcausality(data, lags, permute_list=None, y_bounds_violation_sign
     import numpy as np
     import pandas as pd
     data = np.random.random([500,5])
-    z =  mlcausality.multiloco_mlcausality(data, lags=[5,10], use_minmaxscaler23=False, logdiff=False, use_minmaxscaler01=False, use_powertransformer=True, normalize=True, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf', 'kernel_params':{'gamma':1.0}}, train_size=1)
+    z = mlcausality.multiloco_mlcausality(data, lags=[5,10], use_minmaxscaler23=False, logdiff=False, use_minmaxscaler01=False, use_powertransformer=True, normalize=True, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf', 'kernel_params':{'gamma':1.0}}, train_size=1)
+    zz = mlcausality.loco_mlcausality(data, lags=[5,10], use_minmaxscaler23=False, logdiff=False, use_minmaxscaler01=False, use_powertransformer=True, normalize=True, regressor='krr', regressor_params={'alpha':1.0, 'kernel':'rbf', 'kernel_params':{'gamma':1.0}}, train_size=1)
     
     Parameters
     ----------
