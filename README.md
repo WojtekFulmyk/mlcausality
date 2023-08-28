@@ -46,9 +46,6 @@
   <ol>
     <li>
       <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#built-with">Built With</a></li>
-      </ul>
     </li>
     <li>
       <a href="#getting-started">Getting Started</a>
@@ -59,7 +56,7 @@
     </li>
     <li><a href="#usage">Usage</a></li>
       <ul>
-        <li><a href="#available-functions">Overview of available functions</a></li>
+        <li><a href="#overview-of-available-functions">Overview of available functions</a></li>
         <li><a href="#basic-usage">Basic usage</a></li>
         <li><a href="#setting-parameters">Setting parameters</a></li>
         <li><a href="#available-regressors">Available regressors</a></li>
@@ -74,6 +71,9 @@
 </details>
 
 <!-- 
+      <ul>
+        <li><a href="#built-with">Built With</a></li>
+      </ul>
     <li><a href="#contact">Contact</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
 -->
@@ -104,8 +104,9 @@ When used correctly, __mlcausality__ has exhibited leading performance both in t
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
-
+<!--
 ### Built With
+
 
 * [![NumPy][NumPy]][NumPy-url]
 * [![SciPy][SciPy]][SciPy-url]
@@ -117,8 +118,9 @@ When used correctly, __mlcausality__ has exhibited leading performance both in t
 * [![CatBoost][CatBoost]][CatBoost-url]
 * [![cuML][cuML]][cuML-url]
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+-->
 
 
 <!-- GETTING STARTED -->
@@ -131,17 +133,17 @@ The following presents the easiest way to get __mlcausality__ up and running on 
 Installation requires Python and the pip package installer.
 
 In order to function correctly __mlcausality__ requires the following Python packages:
-* numpy
-* scipy
-* pandas
-* statsmodels
-* scikit-learn
+* [NumPy](NumPy-url)
+* [SciPy](SciPy-url)
+* [pandas](pandas-url)
+* [statsmodels](statsmodels-url)
+* [scikit-learn](scikit-learn-url)
 
 __mlcausality__ also has the following optional prerequisites which you should install if you plan to use the relevant regressors:
-* xgboost
-* lightgbm
-* catboost
-* cuml
+* [XGBoost](XGBoost-url)
+* [LightGBM](LightGBM-url)
+* [CatBoost](CatBoost-url)
+* [cuML](cuML-url)
 
 ### Installation
 
@@ -195,7 +197,6 @@ The __mlcausality__ package provides the following functions:
 
 Suppose you have just 2 time-series of equal length, `X` and `y`, and you would like to find out whether `X` Granger-causes `y` only. Then you can run:
 
-    ```sh
     import mlcausality
     import numpy as np
     import pandas as pd
@@ -203,20 +204,17 @@ Suppose you have just 2 time-series of equal length, `X` and `y`, and you would 
     y = np.random.random([500,1])
     z = mlcausality.mlcausality(X=X,y=y,lag=5)
     #print(z)
-    ```
 
 Note that both `X` and `y` can be multivariate, meaning that they can take multiple time-series. If `X` is multivariate then the Granger-causality test is run with respect to the lags of all time-series in `X`. If `y` is multivariate then the target time-series is the first one and all additional time-series in `y` are exogenous time-series whose lags are kept in both the restricted and unrestricted models when conducting the Granger causality test.
 
 Now suppose that, instead of just being interested in whether one time series Granger causes another, you would like to instead find all Granger-causal relationships amongst several time-series. In that case, you can run:
 
-    ```sh
     import mlcausality
     import numpy as np
     import pandas as pd
     data = np.random.random([500,5])
     z = mlcausality.multiloco_mlcausality(data, lags=[5,10])
     print(z)
-    ```
 
 The above code will check for all Granger-causal connections amongst all time-series in Data by successively leaving one column out. Note that the above code uses the `multiloco_mlcausality` multi-regression function which will yield identical results to the `loco_mlcausality` function only if the regressor is kernel ridge (the default) but will do so significantly faster than `loco_mlcausality`.
 
@@ -227,14 +225,12 @@ The functions `mlcausality` and `multireg_mlcausality` largely share the same pa
 
 The functions `bivariate_mlcausality`, `loco_mlcausality` and `multiloco_mlcausality` largely share the same parameter spaces so in most cases calls to these two functions can be made with the same parameters. Moreover, `bivariate_mlcausality` and `loco_mlcausality` admit the parameters that `mlcausality` accepts and `multiloco_mlcausality` admits the parameters that `multireg_mlcausality` accepts. So, for instance, if one wishes to call `loco_mlcausality`, which uses `mlcausality` internally, with a specific set of parameters that one would like to pass to the inner `mlcausality` function, then one simply needs to pass those parameters to the `loco_mlcausality` function:
 
-    ```sh
     import mlcausality
     import numpy as np
     import pandas as pd
     data = np.random.random([500,5])
     z = mlcausality.loco_mlcausality(data, lags=[5,10], regressor='catboostregressor')
     print(z)
-    ```
 
 The above code recovers the whole network using CatBoost instead of kernel ridge with the RBF kernel (the default). Note that the parameter `regressor` is not defined for the `loco_mlcausality` function but it is defined for `mlcausality`, thus the parameter `regressor` is passed through to `mlcausality`.
 
@@ -268,14 +264,12 @@ Note that not all regressors were fully tested for all parameter values. Less us
 
 Finally, regressors can be called with regressor-specific parameters using the `regressor_params` option, and they can be fitted with regressor-specific fit parameters using the `regressor_fit_params` option. For instance, the following recovers a network using CatBoost with 99 trees (instead of the CatBoost default of 1000) with no verbosity:
 
-    ```sh
     import mlcausality
     import numpy as np
     import pandas as pd
     data = np.random.random([500,5])
     z = mlcausality.loco_mlcausality(data, lags=[5,10], regressor='catboostregressor', regressor_params={'iterations':99}, regressor_fit_params={'verbose':False})
     print(z)
-    ```
 
 ### Data preprocessing
 
@@ -302,7 +296,6 @@ Finally, note that parameters for the above scalers are available in parameters 
 
 The following usage example recovers a network by first applying a 'minmaxscaler' in the `[2,3]` range on the input data and then taking a log difference. Note that the MinMaxScaler is needed here because the input data is negative which would make taking a log difference impossible:
 
-    ```sh
     import mlcausality
     import numpy as np
     import pandas as pd
@@ -313,7 +306,6 @@ The following usage example recovers a network by first applying a 'minmaxscaler
         scaler_prelogdiff_1_params={'feature_range':(2,3)},
         logdiff=True)
     print(z)
-    ```
 
 ### Data splits
 
@@ -327,7 +319,6 @@ Note that both train and test will lose lag number of observations. Moreover, if
 
 The following provides an example of how to correctly use the `split` operator:
 
-    ```sh
     import mlcausality
     import numpy as np
     import pandas as pd
@@ -338,7 +329,6 @@ The following provides an example of how to correctly use the `split` operator:
     split=splits[0]
     z = mlcausality.multiloco_mlcausality(data, lags=[5,10], split=split)
     print(z)
-    ```
 
 ### Other important parameters
 `y_bounds_violation_sign_drop` is an important Boolean parameter with implications for testing Granger causality using the sign test and the Wilcoxon signed rank test. If True, observations in the test set whose true values are outside [min(train), max(train)] are not used when calculating the test statistics and p-values of the sign and Wilcoxon tests (note: this also requires `y_bounds_error` to not be set to 'raise' in the `mlcausality` function). If False, then the sign and Wilcoxon test statistics and p-values are calculated using all observations in the test set. The default True because some models, especially tree-based models, extrapolate very poorly to the range of target values outside of what was seen in train.
@@ -347,10 +337,8 @@ The following provides an example of how to correctly use the `split` operator:
 ### Additional help and documentation
 Less commonly used features are documented using `help()`:
 
-    ```sh
     import mlcausality
     help(mlcausality.loco_mlcausality)
-    ```
 
 <!-- 
 _For more examples, please refer to the [Documentation](https://example.com)_
