@@ -229,7 +229,8 @@ The functions `bivariate_mlcausality`, `loco_mlcausality` and `multiloco_mlcausa
     import numpy as np
     import pandas as pd
     data = np.random.random([500,5])
-    z = mlcausality.loco_mlcausality(data, lags=[5,10], regressor='catboostregressor')
+    z = mlcausality.loco_mlcausality(data, lags=[5,10],
+        regressor='catboostregressor')
     print(z)
 
 The above code recovers the whole network using CatBoost instead of kernel ridge with the RBF kernel (the default). Note that the parameter `regressor` is not defined for the `loco_mlcausality` function but it is defined for `mlcausality`, thus the parameter `regressor` is passed through to `mlcausality`.
@@ -268,7 +269,10 @@ Finally, regressors can be called with regressor-specific parameters using the `
     import numpy as np
     import pandas as pd
     data = np.random.random([500,5])
-    z = mlcausality.loco_mlcausality(data, lags=[5,10], regressor='catboostregressor', regressor_params={'iterations':99}, regressor_fit_params={'verbose':False})
+    z = mlcausality.loco_mlcausality(data, lags=[5,10],
+        regressor='catboostregressor',
+        regressor_params={'iterations':99},
+        regressor_fit_params={'verbose':False})
     print(z)
 
 ### Data preprocessing
@@ -327,7 +331,8 @@ The following provides an example of how to correctly use the `split` operator:
     tscv = TimeSeriesSplit()
     splits = list(tscv.split(data))
     split=splits[0]
-    z = mlcausality.multiloco_mlcausality(data, lags=[5,10], split=split)
+    z = mlcausality.multiloco_mlcausality(data,
+        lags=[5,10], split=split)
     print(z)
 
 ### Other important parameters
