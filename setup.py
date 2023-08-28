@@ -22,8 +22,7 @@ setup(
         'scipy',
         'pandas',
         'statsmodels',
-        'scikit-learn',
-        'tqdm'
+        'scikit-learn'
     ],
     
     extras_require={
