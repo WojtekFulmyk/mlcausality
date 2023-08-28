@@ -83,10 +83,10 @@
 
 <!-- [![Product Name Screen Shot][product-screenshot]](https://example.com) -->
 
-__mlcausality__ is a Python library for linear and nonlinear Granger causality analysis. Given time-series `X` and `y` if the lags of both `X` and <code>y</code> provide a better prediction for the current value of `y` than the lags of `y` alone then `X` is said to Granger cause `y`. Note that Granger causality is a misnomer: no actual causality is implied, Granger causality is entirely grounded in prediction.
+__mlcausality__ is a Python library for linear and nonlinear Granger causality analysis. Given time-series `X` and `y`, if the lags of both `X` and <code>y</code> provide a better prediction for the current value of `y` than the lags of `y` alone, then `X` is said to Granger cause `y`. Note that Granger causality is a misnomer: no actual causality is implied because Granger causality is entirely grounded in prediction.
 
 The __mlcausality__ package provides a new way for establishing such Granger causal links using machine learning techniques. Thanks to the usage of the 
-<a href="https://en.wikipedia.org/wiki/Sign_test">sign test</a> and the <a href="https://en.wikipedia.org/wiki/Wilcoxon_signed-rank_test">Wilcoxon signed rank test</a> under the hood, __mlcausality__ is extremely flexible and can be used with a multitude of machine learning regressors. By default, <a href="https://scikit-learn.org/stable/modules/kernel_ridge.html">kernel ridge regression</a> is used, but the __mlcausality__ package can use other base regressors such as:
+<a href="https://en.wikipedia.org/wiki/Sign_test">sign test</a> and the <a href="https://en.wikipedia.org/wiki/Wilcoxon_signed-rank_test">Wilcoxon signed rank test</a>, __mlcausality__ is extremely flexible and can be used with a multitude of machine learning regressors. By default, <a href="https://scikit-learn.org/stable/modules/kernel_ridge.html">kernel ridge regression</a> is used, but the __mlcausality__ package can use other regressors such as:
 
  <ul>
   <li><a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVR.html">support vector regressor (SVR)</a></li>
