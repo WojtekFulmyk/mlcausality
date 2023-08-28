@@ -236,27 +236,27 @@ The above code recovers the whole network using CatBoost instead of kernel ridge
 
 ### Available regressors
 `mlcausality` admits the following regressors:
-* 'krr' : kernel ridge regressor
-* 'catboostregressor' : CatBoost regressor
-* 'xgbregressor' : XGBoost regressor
-* 'lgbmregressor' : LightGBM regressor
-* 'randomforestregressor' : random forest regressor
-* 'cuml_randomforestregressor' : random forest regressor using the cuML library
-* 'linearregression' : linear regressor
-* 'classic' : linear regressor in the classic sense (train == test == all data)
-* 'svr' : Epsilon Support Vector Regression
-* 'nusvr' : Nu Support Vector Regression
-* 'cuml_svr' : Epsilon Support Vector Regression using the cuML library
-* 'knn' : Regression based on k-nearest neighbors
-* 'gaussianprocessregressor' : Gaussian process regressor
-* 'gradientboostingregressor' : Gradient boost regressor
-* 'histgradientboostingregressor' : Histogram-based Gradient Boosting Regression Tree
-* 'default' : kernel ridge regressor with the RBF kernel set as default (default)
+* 'krr' : [Kernel ridge regressor](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
+* 'catboostregressor' : [CatBoost regressor](https://catboost.ai/docs/concepts/python-reference_catboostregressor)
+* 'xgbregressor' : [XGBoost regressor](https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.XGBRegressor)
+* 'lgbmregressor' : [LightGBM regressor](https://lightgbm.readthedocs.io/en/latest/pythonapi/lightgbm.LGBMRegressor.html)
+* 'randomforestregressor' : [Random forest regressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html)
+* 'cuml_randomforestregressor' : [Random forest regressor using the cuML library](https://docs.rapids.ai/api/cuml/stable/api/#cuml.ensemble.RandomForestRegressor)
+* 'linearregression' : [Linear regressor](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html)
+* 'classic' : [Linear regressor in the classic sense (train == test == all data)](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html)
+* 'svr' : [Epsilon Support Vector Regressor](https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVR.html)
+* 'nusvr' : [Nu Support Vector Regressor](https://scikit-learn.org/stable/modules/generated/sklearn.svm.NuSVR.html)
+* 'cuml_svr' : [Epsilon Support Vector Regressor using the cuML library](https://docs.rapids.ai/api/cuml/stable/api/#cuml.svm.SVR)
+* 'knn' : [Regression based on k-nearest neighbors](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsRegressor.html)
+* 'gaussianprocessregressor' : [Gaussian process regressor](https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessRegressor.html)
+* 'gradientboostingregressor' : [Gradient boost regressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html)
+* 'histgradientboostingregressor' : [Histogram-based Gradient Boosting Regression Tree](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html)
+* 'default' : [kernel ridge regressor with the RBF kernel set as default (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 
 `multireg_mlcausality` admits the following regressors:
-* 'krr' : kernel ridge regressor
-* 'catboostregressor' : CatBoost regressor
-* 'default' : kernel ridge regressor with the RBF kernel set as default (default)
+* 'krr' : [Kernel ridge regressor](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
+* 'catboostregressor' : [CatBoost regressor](https://catboost.ai/en/docs/concepts/loss-functions-multiregression#MultiRMSEWithMissingValues)
+* 'default' : [kernel ridge regressor with the RBF kernel set as default (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 
 Note that the CatBoost regressor option in `multireg_mlcausality` uses a different objective (`MultiRMSEWithMissingValues`) than those available for the CatBoost regressor in `mlcausality` (most notably `RMSE`) hence `multireg_mlcausality` with `regressor='catboostregressor'` will not be identical to `mlcausality` with `regressor='catboostregressor'`.
 
