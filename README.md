@@ -133,17 +133,17 @@ The following presents the easiest way to get __mlcausality__ up and running on 
 Installation requires Python and the pip package installer.
 
 In order to function correctly __mlcausality__ requires the following Python packages:
-* [NumPy](NumPy-url)
-* [SciPy](SciPy-url)
-* [pandas](pandas-url)
-* [statsmodels](statsmodels-url)
-* [scikit-learn](scikit-learn-url)
+* [NumPy](https://numpy.org)
+* [SciPy](https://scipy.org)
+* [pandas](https://pandas.pydata.org)
+* [statsmodels](https://www.statsmodels.org)
+* [scikit-learn](https://scikit-learn.org)
 
 __mlcausality__ also has the following optional prerequisites which you should install if you plan to use the relevant regressors:
-* [XGBoost](XGBoost-url)
-* [LightGBM](LightGBM-url)
-* [CatBoost](CatBoost-url)
-* [cuML](cuML-url)
+* [XGBoost](https://xgboost.readthedocs.io)
+* [LightGBM](https://lightgbm.readthedocs.io)
+* [CatBoost](https://catboost.ai)
+* [cuML](https://github.com/rapidsai/cuml)
 
 ### Installation
 
@@ -453,7 +453,7 @@ Project Link: [https://github.com/WojtekFulmyk/mlcausality](https://github.com/W
 [scikit-learn-url]: https://scikit-learn.org
 [XGBoost-url]: https://xgboost.readthedocs.io
 [LightGBM-url]: https://lightgbm.readthedocs.io
-[CatBoost-url]: https://catboost.ai/
+[CatBoost-url]: https://catboost.ai
 [cuML-url]: https://github.com/rapidsai/cuml
 
 
