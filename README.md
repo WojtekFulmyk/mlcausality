@@ -191,11 +191,11 @@ The __mlcausality__ package provides the following functions:
 * `bivariate_mlcausality` : Runs `mlcausality` to test for all bivariate Granger causal relationships amongst the time-series passed to the parameter `data`.
 * `loco_mlcausality` : Runs `mlcausality` to test for all Granger causal relationships amongst the time-series passed to the parameter `data` by successively leaving one column out (loco). This function tests for Granger causality in the presence of exogenous time-series whereas `bivariate_mlcausality` only tests for bivariate combinations.
 * `multireg_mlcausality` : A multiregression analogue of `mlcausality`. Most users will probably never have to run `multireg_mlcausality` directly; rather, it is expected that `multiloco_mlcausality` will be run instead. Currently `multireg_mlcausality` only supports the kernel ridge regressor and the CatBoost regressor.
-* `multiloco_mlcausality` : A multiregression analogue of `loco_mlcausality`. This function uses `multireg_mlcausality` under the hood and is therefore currently supported for kernel ridge regressor and the CatBoost regressor. __If you would like to recover Granger causal connections for an entire network efficiently using kernel ridge regression this is the function you want to use__.
+* `multiloco_mlcausality` : A multiregression analogue of `loco_mlcausality`. This function uses `multireg_mlcausality` under the hood and is therefore currently supported for the kernel ridge regressor and the CatBoost regressor only. __If you would like to recover Granger causal connections for an entire network efficiently using kernel ridge regression this is the function you want to use__.
 
 ### Basic usage
 
-Suppose you have just 2 time-series of equal length, `X` and `y`, and you would like to find out whether `X` Granger-causes `y` only. Then you can run:
+Suppose you have just 2 time-series of equal length, `X` and `y`, and you would like to find out whether `X` Granger-causes `y`. Then you can run:
 
     import mlcausality
     import numpy as np
@@ -205,7 +205,9 @@ Suppose you have just 2 time-series of equal length, `X` and `y`, and you would 
     z = mlcausality.mlcausality(X=X,y=y,lag=5)
     #print(z)
 
-Note that both `X` and `y` can be multivariate, meaning that they can take multiple time-series. If `X` is multivariate then the Granger-causality test is run with respect to the lags of all time-series in `X`. If `y` is multivariate then the target time-series is the first one and all additional time-series in `y` are exogenous time-series whose lags are kept in both the restricted and unrestricted models when conducting the Granger causality test.
+The _p_-values of the sign test and the Wilcoxon signed rank test are output to `z` (and `stdout` in some cases depending on the function and parameters chosen). Granger causality can be established on the basis of these _p_-values and your desired level of precision. For instance, if you prefer the sign test over the Wilcoxon signed rank test and your desired significance level is 0.05, then if the _p_-value from the sign test is below 0.05 you would reject the null hypothesis of no causality and conclude that `X` Granger-causes `y`.
+
+Note that both `X` and `y` can be multivariate, meaning that they can take multiple time-series. If `X` is multivariate then the Granger-causality test is run with respect to the lags of all time-series in `X`; in other words, the null hypothesis is that the time-series in `X` do not collectively Granger-cause `y`. If `y` is multivariate then the target time-series is the first column and all additional columns in `y` are exogenous time-series whose lags are kept in both the restricted and unrestricted models when conducting the Granger causality test.
 
 Now suppose that, instead of just being interested in whether one time series Granger causes another, you would like to instead find all Granger-causal relationships amongst several time-series. In that case, you can run:
 
@@ -216,7 +218,7 @@ Now suppose that, instead of just being interested in whether one time series Gr
     z = mlcausality.multiloco_mlcausality(data, lags=[5,10])
     print(z)
 
-The above code will check for all Granger-causal connections amongst all time-series in `data` by successively leaving one column out. Note that the above code uses the `multiloco_mlcausality` multi-regression function which will yield identical results to the `loco_mlcausality` function only if the regressor is kernel ridge (the default) but will do so significantly faster than `loco_mlcausality`.
+The above code will check for all Granger-causal connections amongst all time-series in `data` by successively leaving one column out in the restricted model. Note that the above code uses the `multiloco_mlcausality` multi-regression function which will yield identical results to the `loco_mlcausality` function only if the regressor is kernel ridge (the default) but will do so significantly faster than `loco_mlcausality`.
 
 The syntax of the __mlcausality__ package is internally consistent. If you would like to use `loco_mlcausality` instead of `multiloco_mlcausality` for the code block above just substitute `multiloco_mlcausality` with `loco_mlcausality` to obtain an equivalent but slower solution. Moreover, if instead of finding Granger-causal relationships by leaving one column out you instead wanted to just test for Granger-causal relationships in a bivariate fashion, you can instead substitute  `loco_mlcausality` for `bivariate_mlcausality`.
 
@@ -233,10 +235,10 @@ The functions `bivariate_mlcausality`, `loco_mlcausality` and `multiloco_mlcausa
         regressor='catboostregressor')
     print(z)
 
-The above code recovers the whole network using CatBoost instead of kernel ridge with the RBF kernel (the default). Note that the parameter `regressor` is not defined for the `loco_mlcausality` function but it is defined for `mlcausality`, thus the parameter `regressor` is passed through to `mlcausality`.
+The above code recovers the whole network using CatBoost instead of kernel ridge (the default). Note that the parameter `regressor` is not defined for the `loco_mlcausality` function but it is defined for `mlcausality`, thus the parameter `regressor` is passed through to `mlcausality`.
 
 ### Available regressors
-`mlcausality` admits the following regressors:
+`mlcausality`, `mlcausality_splits_loop`, `bivariate_mlcausality` and `loco_mlcausality` admit the following regressors:
 * 'krr' : [Kernel ridge regressor](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 * 'catboostregressor' : [CatBoost regressor](https://catboost.ai/docs/concepts/python-reference_catboostregressor)
 * 'xgbregressor' : [XGBoost regressor](https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.XGBRegressor)
@@ -254,16 +256,16 @@ The above code recovers the whole network using CatBoost instead of kernel ridge
 * 'histgradientboostingregressor' : [Histogram-based Gradient Boosting Regression Tree](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html)
 * 'default' : [kernel ridge regressor with the RBF kernel set as default (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 
-`multireg_mlcausality` admits the following regressors:
+`multireg_mlcausality` and `multiloco_mlcausality` admit the following regressors:
 * 'krr' : [Kernel ridge regressor](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 * 'catboostregressor' : [CatBoost regressor](https://catboost.ai/en/docs/concepts/loss-functions-multiregression#MultiRMSEWithMissingValues)
 * 'default' : [kernel ridge regressor with the RBF kernel set as default (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 
-Note that the CatBoost regressor option in `multireg_mlcausality` uses a different objective (`MultiRMSEWithMissingValues`) than those available for the CatBoost regressor in `mlcausality` (most notably `RMSE`) hence `multireg_mlcausality` with `regressor='catboostregressor'` will not be identical to `mlcausality` with `regressor='catboostregressor'`.
+Note that the CatBoost regressor option in `multireg_mlcausality` and `multiloco_mlcausality` use a different objective (`MultiRMSEWithMissingValues`) than those available for the CatBoost regressor in `mlcausality`-derived functions (most notably `RMSE`) hence `multiloco_mlcausality` with `regressor='catboostregressor'` will not be identical to `loco_mlcausality` with `regressor='catboostregressor'`.
 
-Note that not all regressors were fully tested for all parameter values. Less used regressors may not work for unscaled or non-normalized time-series.
+Note that not all regressors were fully tested for all parameter values. Less frequently used regressors may not work for unscaled or non-normalized time-series.
 
-Finally, regressors can be called with regressor-specific parameters using the `regressor_params` option, and they can be fitted with regressor-specific fit parameters using the `regressor_fit_params` option. For instance, the following recovers a network using CatBoost with 99 trees (instead of the CatBoost default of 1000) with no verbosity:
+Finally, regressors can be called with regressor-specific parameters using the `regressor_params` option, and they can be fitted with regressor-specific fit parameters using the `regressor_fit_params` option. For instance, the following recovers a network using CatBoost with 99 iterations (instead of the CatBoost default of 1000) and no verbosity:
 
     import mlcausality
     import numpy as np
@@ -279,10 +281,10 @@ Finally, regressors can be called with regressor-specific parameters using the `
 
 __mlcausality__ comes with batteries included and you will typically not have to engage in substantial preprocessing before using the package. All functions support the usage of scalers or transformers from the __scikit-learn__ package at various stages of the Granger causality testing process:
 
-* parameters `scaler_init_1` and `scaler_init_2` apply scalars to the input data and those transformations persist throughout the analysis. Predictions generated by the restricted and unrestricted models are not going to be inverse-transformed and the Granger causality analysis will be performed on the not inverse-transformed predictions and errors.
-* parameters `scaler_prelogdiff_1`, `scaler_postlogdiff_2` `scaler_postlogdiff_1`, `scaler_prelogdiff_2`, `scaler_postsplit_1` and `scaler_postsplit_2` apply scalars to the input data and those transformations do not persist throughout the analysis. Predictions generated by the restricted and unrestricted models are going to be inverse-transformed and the Granger causality analysis will be performed on the inverse-transformed predictions and errors. The names of the parameters indicate the stage at which the transformation occurs with respect to taking a logdiff (see below) or splitting the dataset into a train and test set.
-* parameter `logdiff` transforms, in a reversible way, the data by taking a log difference of all time-series. Predictions generated by the restricted and unrestricted models are going to be inverse-transformed and the Granger causality analysis will be performed on the inverse-transformed predictions and errors.
-* parameters `scaler_dm_1` and `scaler_dm_2` apply scalars to the design matricies of the train and test data.
+* parameters `scaler_init_1` and `scaler_init_2` apply scalars to the input data and those transformations persist throughout the analysis. Predictions generated by the restricted and unrestricted models are not inverse-transformed and the Granger causality analysis will be performed on the non-inverse-transformed predictions and errors.
+* parameters `scaler_prelogdiff_1`, `scaler_postlogdiff_2` `scaler_postlogdiff_1`, `scaler_prelogdiff_2`, `scaler_postsplit_1` and `scaler_postsplit_2` apply scalars to the input data and those transformations do not persist throughout the analysis. Predictions generated by the restricted and unrestricted models are inverse-transformed and the Granger causality analysis is performed on the inverse-transformed predictions and errors. The names of the parameters indicate the stage at which the transformation occurs with respect to taking a logdiff (see below) or splitting the dataset into a train and test set.
+* parameter `logdiff` transforms, in a reversible way, the data by taking a log difference of all time-series. Predictions generated by the restricted and unrestricted models are inverse-transformed and the Granger causality analysis is performed on the inverse-transformed predictions and errors.
+* parameters `scaler_dm_1` and `scaler_dm_2` apply scalers to the design matricies of the train and test data.
 
 For additional clarity, note that the order in which transformations are applied is as follows:
 init --> prelogdiff --> logdiff --> postlogdiff --> (data split occurs into test and train) --> postsplit --> dm
@@ -298,7 +300,7 @@ The following scalers and transformers are currently supported:
 
 Finally, note that parameters for the above scalers are available in parameters named `*_params` where `*` stands for the name of the scaler. So `scaler_dm_1_params` are the params for `scaler_dm_1` etc.
 
-The following usage example recovers a network by first applying a 'minmaxscaler' in the `[2,3]` range on the input data and then taking a log difference. Note that the MinMaxScaler is needed here because the input data is negative which would make taking a log difference impossible:
+The following usage example recovers a network by first applying a 'minmaxscaler' in the `[2,3]` range on the input data and then taking a log difference. Note that the MinMaxScaler is needed here because the input data is negative which would prevent the taking of a log difference in the absence of the scaler:
 
     import mlcausality
     import numpy as np
@@ -315,11 +317,11 @@ The following usage example recovers a network by first applying a 'minmaxscaler
 
 Data can be split into a test and train set using the `train_size` or `split` or `splits` parameters, as appropriate.
 
-If `splits` is None and `train_size` is a float then `train_size` indicates the fraction of the data on which training occurs with the rest of the data ending up in the test set. Moreover, if `splits` is None and `train_size` is an integer greater than 1 then `train_size` indicates the number of observations to include in the training set. Finally, if `train_size` is equal to 1 then the train set and the test set are identical and equal to all the available data.
+If `split(s)` is None and `train_size` is a float then `train_size` indicates the fraction of the data on which training occurs with the rest of the data ending up in the test set. Moreover, if `split(s)` is None and `train_size` is an integer greater than 1 then `train_size` indicates the number of observations to include in the training set. Finally, if `train_size` is equal to 1 then the train set and the test set are identical and equal to all the available data.
 
 Other than controlling the data split using `train_size` one can instead provide a list of 2 lists to the `split` or `splits` parameter as appropriate. The first of the 2 lists would provide the indicies for the training set, while the second fo the 2 lists would provide the indicies for the test set. __All index lists must contain consecutive indicies with no gaps or holes otherwise lags will not be constructed correctly__.
 
-Note that both train and test will lose lag number of observations. Moreover, if `logdiff` is True, an additional observation is lost from train and test because of the differencing operation.
+Note that both train and test, after lags are taken, always decrease in size by the number of lags. Moreover, if `logdiff` is True, an additional observation is lost from train and test because of the differencing operation.
 
 The following provides an example of how to correctly use the `split` operator:
 
@@ -336,7 +338,7 @@ The following provides an example of how to correctly use the `split` operator:
     print(z)
 
 ### Other important parameters
-`y_bounds_violation_sign_drop` is an important Boolean parameter with implications for testing Granger causality using the sign test and the Wilcoxon signed rank test. If True, observations in the test set whose true values are outside [min(train), max(train)] are not used when calculating the test statistics and p-values of the sign and Wilcoxon tests (note: this also requires `y_bounds_error` to not be set to 'raise' in the `mlcausality` function). If False, then the sign and Wilcoxon test statistics and p-values are calculated using all observations in the test set. The default True because some models, especially tree-based models, extrapolate very poorly to the range of target values outside of what was seen in train.
+`y_bounds_violation_sign_drop` is an important Boolean parameter with implications for testing Granger causality using the sign test and the Wilcoxon signed rank test. If True, observations in the test set whose target values are outside [min(train), max(train)] are not used when calculating the test statistics and p-values of the sign and Wilcoxon tests (note: this also requires `y_bounds_error` to not be set to 'raise' in the `mlcausality` function). If False, then the sign and Wilcoxon test statistics and p-values are calculated using all observations in the test set. The default is set to True because some models, especially tree-based models, extrapolate very poorly outside the range of target values that were seen in train.
 
 
 ### Additional help and documentation
