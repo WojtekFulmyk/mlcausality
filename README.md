@@ -216,7 +216,7 @@ Now suppose that, instead of just being interested in whether one time series Gr
     z = mlcausality.multiloco_mlcausality(data, lags=[5,10])
     print(z)
 
-The above code will check for all Granger-causal connections amongst all time-series in Data by successively leaving one column out. Note that the above code uses the `multiloco_mlcausality` multi-regression function which will yield identical results to the `loco_mlcausality` function only if the regressor is kernel ridge (the default) but will do so significantly faster than `loco_mlcausality`.
+The above code will check for all Granger-causal connections amongst all time-series in `data` by successively leaving one column out. Note that the above code uses the `multiloco_mlcausality` multi-regression function which will yield identical results to the `loco_mlcausality` function only if the regressor is kernel ridge (the default) but will do so significantly faster than `loco_mlcausality`.
 
 The syntax of the __mlcausality__ package is internally consistent. If you would like to use `loco_mlcausality` instead of `multiloco_mlcausality` for the code block above just substitute `multiloco_mlcausality` with `loco_mlcausality` to obtain an equivalent but slower solution. Moreover, if instead of finding Granger-causal relationships by leaving one column out you instead wanted to just test for Granger-causal relationships in a bivariate fashion, you can instead substitute  `loco_mlcausality` for `bivariate_mlcausality`.
 
