@@ -30,7 +30,7 @@
 <h3 align="center">mlcausality</h3>
 
   <p align="center">
-    Nonlinear Granger Causality Using Machine Learning Techniques
+    Linear and Nonlinear Granger Causality using Machine Learning Techniques
     <br />
     <a href="https://github.com/WojtekFulmyk/mlcausality/issues">Report Bug</a>
     ·
@@ -130,7 +130,7 @@ The following presents the easiest way to get __mlcausality__ up and running on 
 
 ### Prerequisites
 
-Installation requires Python and the pip package installer.
+Installation requires __Python__ and the __pip__ package installer.
 
 In order to function correctly __mlcausality__ requires the following Python packages:
 * [NumPy](https://numpy.org)
@@ -218,9 +218,9 @@ Now suppose that, instead of just being interested in whether one time series Gr
     z = mlcausality.multiloco_mlcausality(data, lags=[5,10])
     print(z)
 
-The above code will check for all Granger-causal connections amongst all time-series in `data` by successively leaving one column out in the restricted model. Note that the above code uses the `multiloco_mlcausality` multi-regression function which will yield identical results to the `loco_mlcausality` function only if the regressor is kernel ridge (the default) but will do so significantly faster than `loco_mlcausality`.
+The above code will check for all Granger-causal connections amongst all time-series in `data` by successively leaving one column out in the restricted model. Note that the above code uses the `multiloco_mlcausality` multiregression function which will yield identical results to the `loco_mlcausality` function only if the regressor is kernel ridge (the default) but will do so significantly faster than `loco_mlcausality`.
 
-The syntax of the __mlcausality__ package is internally consistent. If you would like to use `loco_mlcausality` instead of `multiloco_mlcausality` for the code block above just substitute `multiloco_mlcausality` with `loco_mlcausality` to obtain an equivalent but slower solution. Moreover, if instead of finding Granger-causal relationships by leaving one column out you instead wanted to just test for Granger-causal relationships in a bivariate fashion, you can instead substitute  `loco_mlcausality` for `bivariate_mlcausality`.
+The syntax of the __mlcausality__ package is internally consistent. If you would like to use `loco_mlcausality` instead of `multiloco_mlcausality` for the code block above just substitute `multiloco_mlcausality` with `loco_mlcausality` to obtain an equivalent but slower solution. Moreover, if instead of finding Granger-causal relationships by leaving one column out you instead wanted to just test for Granger-causal relationships in a bivariate fashion, you can instead substitute  `multiloco_mlcausality` for `bivariate_mlcausality`.
 
 ### Setting parameters
 The functions `mlcausality` and `multireg_mlcausality` largely share the same parameter spaces so in most cases calls to these two functions can be made with the same parameters.
@@ -254,18 +254,16 @@ The above code recovers the whole network using CatBoost instead of kernel ridge
 * 'gaussianprocessregressor' : [Gaussian process regressor](https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessRegressor.html)
 * 'gradientboostingregressor' : [Gradient boost regressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html)
 * 'histgradientboostingregressor' : [Histogram-based Gradient Boosting Regression Tree](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html)
-* 'default' : [kernel ridge regressor with the RBF kernel set as default (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
+* 'default' : [kernel ridge regressor with the RBF kernel (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 
 `multireg_mlcausality` and `multiloco_mlcausality` admit the following regressors:
 * 'krr' : [Kernel ridge regressor](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 * 'catboostregressor' : [CatBoost regressor](https://catboost.ai/en/docs/concepts/loss-functions-multiregression#MultiRMSEWithMissingValues)
-* 'default' : [kernel ridge regressor with the RBF kernel set as default (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
+* 'default' : [kernel ridge regressor with the RBF kernel (default)](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html)
 
-Note that the CatBoost regressor option in `multireg_mlcausality` and `multiloco_mlcausality` use a different objective (`MultiRMSEWithMissingValues`) than those available for the CatBoost regressor in `mlcausality`-derived functions (most notably `RMSE`) hence `multiloco_mlcausality` with `regressor='catboostregressor'` will not be identical to `loco_mlcausality` with `regressor='catboostregressor'`.
+Note that the CatBoost regressor option in `multireg_mlcausality` (and by extension `multiloco_mlcausality`) usea a different objective (`MultiRMSEWithMissingValues`) than the objectives available for the CatBoost regressor in `mlcausality`-derived functions (most notably `RMSE`). Hence `multiloco_mlcausality` with `regressor='catboostregressor'` will not be identical to `loco_mlcausality` with `regressor='catboostregressor'`; for details read the CatBoost documentation.
 
-Note that not all regressors were fully tested for all parameter values. Less frequently used regressors may not work for unscaled or non-normalized time-series.
-
-Finally, regressors can be called with regressor-specific parameters using the `regressor_params` option, and they can be fitted with regressor-specific fit parameters using the `regressor_fit_params` option. For instance, the following recovers a network using CatBoost with 99 iterations (instead of the CatBoost default of 1000) and no verbosity:
+Regressors can be called with regressor-specific parameters using the `regressor_params` option and they can be fitted with regressor-specific fit parameters using the `regressor_fit_params` option. For instance, the following recovers a network using CatBoost with 99 iterations (instead of the CatBoost default of 1000) and no verbosity:
 
     import mlcausality
     import numpy as np
@@ -281,7 +279,7 @@ Finally, regressors can be called with regressor-specific parameters using the `
 
 __mlcausality__ comes with batteries included and you will typically not have to engage in substantial preprocessing before using the package. All functions support the usage of scalers or transformers from the __scikit-learn__ package at various stages of the Granger causality testing process:
 
-* parameters `scaler_init_1` and `scaler_init_2` apply scalars to the input data and those transformations persist throughout the analysis. Predictions generated by the restricted and unrestricted models are not inverse-transformed and the Granger causality analysis will be performed on the non-inverse-transformed predictions and errors.
+* parameters `scaler_init_1` and `scaler_init_2` apply scalars to the input data and those transformations persist throughout the analysis. Predictions generated by the restricted and unrestricted models are not inverse-transformed and the Granger causality analysis will be performed on the raw (that is, non-inverse-transformed) predictions and errors.
 * parameters `scaler_prelogdiff_1`, `scaler_postlogdiff_2` `scaler_postlogdiff_1`, `scaler_prelogdiff_2`, `scaler_postsplit_1` and `scaler_postsplit_2` apply scalars to the input data and those transformations do not persist throughout the analysis. Predictions generated by the restricted and unrestricted models are inverse-transformed and the Granger causality analysis is performed on the inverse-transformed predictions and errors. The names of the parameters indicate the stage at which the transformation occurs with respect to taking a logdiff (see below) or splitting the dataset into a train and test set.
 * parameter `logdiff` transforms, in a reversible way, the data by taking a log difference of all time-series. Predictions generated by the restricted and unrestricted models are inverse-transformed and the Granger causality analysis is performed on the inverse-transformed predictions and errors.
 * parameters `scaler_dm_1` and `scaler_dm_2` apply scalers to the design matricies of the train and test data.
@@ -342,7 +340,7 @@ The following provides an example of how to correctly use the `split` operator:
 
 
 ### Additional help and documentation
-Less commonly used features are documented using `help()`:
+Less commonly used features are documented using `help()`. For instance, the following provides more information about `loco_mlcausality` function inside an interactive __Python__ shell:
 
     import mlcausality
     help(mlcausality.loco_mlcausality)
