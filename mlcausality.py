@@ -574,9 +574,7 @@ def mlcausality(
     early_stop = False
     if (
         (scaler_init_1 is not None and scaler_init_1.lower() == "normalizer")
-        or (
-            scaler_init_2 is not None and scaler_init_2.lower() == "normalizer"
-        )
+        or (scaler_init_2 is not None and scaler_init_2.lower() == "normalizer")
         or (
             scaler_prelogdiff_1 is not None
             and scaler_prelogdiff_1.lower() == "normalizer"
@@ -618,14 +616,10 @@ def mlcausality(
         else:
             y = y.to_numpy()
     if not isinstance(y, np.ndarray):
-        raise TypeError(
-            "y could not be cast to np.ndarray in mlcausality")
+        raise TypeError("y could not be cast to np.ndarray in mlcausality")
     if len(y.shape) == 1:
         y = np.atleast_2d(y).reshape(-1, 1)
-    if (
-        regressor.lower() == "gaussianprocessregressor"
-        or regressor.lower() == "gpr"
-    ):
+    if regressor.lower() == "gaussianprocessregressor" or regressor.lower() == "gpr":
         y = y.astype(np.float128)
     elif (
         regressor.lower() == "kernelridge"
@@ -644,16 +638,13 @@ def mlcausality(
             else:
                 X = X.to_numpy()
         if not isinstance(X, np.ndarray):
-            raise TypeError(
-                "X could not be cast to np.ndarray in mlcausality")
+            raise TypeError("X could not be cast to np.ndarray in mlcausality")
         if len(X.shape) == 1:
             X = np.atleast_2d(X).reshape(-1, 1)
         if X.shape[0] != y.shape[0]:
             print(X.shape)
             print(y.shape)
-            raise ValueError(
-                "X and y must have the same length in dimension 0"
-            )
+            raise ValueError("X and y must have the same length in dimension 0")
         if (
             regressor.lower() == "gaussianprocessregressor"
             or regressor.lower() == "gpr"
@@ -729,11 +720,8 @@ def mlcausality(
                 scaler=scaler_prelogdiff_1,
                 scaler_params=scaler_prelogdiff_1_params,
             )
-            X_transformed = scaler_prelogdiff_1_dict["X"].fit_transform(
-                X)
-            data_scaled = np.concatenate(
-                [y_transformed, X_transformed], axis=1
-            )
+            X_transformed = scaler_prelogdiff_1_dict["X"].fit_transform(X)
+            data_scaled = np.concatenate([y_transformed, X_transformed], axis=1)
         else:
             data_scaled = y_transformed
     else:
@@ -756,11 +744,9 @@ def mlcausality(
                 scaler_params=scaler_prelogdiff_2_params,
             )
             X_transformed = scaler_prelogdiff_2_dict["X"].fit_transform(
-                data_scaled[:, y.shape[1]:]
+                data_scaled[:, y.shape[1] :]
             )
-            data_scaled = np.concatenate(
-                [y_transformed, X_transformed], axis=1
-            )
+            data_scaled = np.concatenate([y_transformed, X_transformed], axis=1)
         else:
             data_scaled = y_transformed
     # Logdiff
@@ -784,11 +770,9 @@ def mlcausality(
                 scaler_params=scaler_postlogdiff_1_params,
             )
             X_transformed = scaler_postlogdiff_1_dict["X"].fit_transform(
-                data_scaled[:, y.shape[1]:]
+                data_scaled[:, y.shape[1] :]
             )
-            data_scaled = np.concatenate(
-                [y_transformed, X_transformed], axis=1
-            )
+            data_scaled = np.concatenate([y_transformed, X_transformed], axis=1)
         else:
             data_scaled = y_transformed
     if scaler_postlogdiff_2 is not None:
@@ -806,11 +790,9 @@ def mlcausality(
                 scaler_params=scaler_postlogdiff_2_params,
             )
             X_transformed = scaler_postlogdiff_2_dict["X"].fit_transform(
-                data_scaled[:, y.shape[1]:]
+                data_scaled[:, y.shape[1] :]
             )
-            data_scaled = np.concatenate(
-                [y_transformed, X_transformed], axis=1
-            )
+            data_scaled = np.concatenate([y_transformed, X_transformed], axis=1)
         else:
             data_scaled = y_transformed
     if not split_override and split is not None:
@@ -849,7 +831,7 @@ def mlcausality(
             )
         if logdiff:
             train = data_scaled[: train_size - 1, :]
-            test = data_scaled[train_size - 1:, :]
+            test = data_scaled[train_size - 1 :, :]
         else:
             train = data_scaled[:train_size, :]
             test = data_scaled[train_size:, :]
@@ -870,26 +852,20 @@ def mlcausality(
             raise ValueError(
                 "train_size is a float that is too small resulting in no samples in train"
             )
-        elif (
-            not logdiff and round(
-                (1 - train_size) * y.shape[0]) - lag - 1 < 0
-        ):
+        elif not logdiff and round((1 - train_size) * y.shape[0]) - lag - 1 < 0:
             raise ValueError(
                 "train_size is a float that is too large resulting in no samples in test"
             )
         else:
             if logdiff:
-                train = data_scaled[: round(
-                    train_size * y.shape[0]) - 1, :]
-                test = data_scaled[round(
-                    train_size * y.shape[0]) - 1:, :]
+                train = data_scaled[: round(train_size * y.shape[0]) - 1, :]
+                test = data_scaled[round(train_size * y.shape[0]) - 1 :, :]
             else:
-                train = data_scaled[: round(
-                    train_size * y.shape[0]), :]
-                test = data_scaled[round(train_size * y.shape[0]):, :]
+                train = data_scaled[: round(train_size * y.shape[0]), :]
+                test = data_scaled[round(train_size * y.shape[0]) :, :]
     else:
         raise TypeError(
-            'train_size must be provided as a float or int to mlcausality. Alternatively, '
+            "train_size must be provided as a float or int to mlcausality. Alternatively, "
             'you can provide a split to "split".'
         )
     # Regressors
@@ -920,11 +896,11 @@ def mlcausality(
             regressor[1]
         ):
             raise TypeError(
-                'regressors passed for the restricted and unrestricted models are of '
-                'different types. This does not really make much sense for the purposes '
-                'of Granger causality testing because the performance of different types '
-                'of regressors could be vastly different, which could lead to erroneous '
-                'conclusions regarding Granger causality. If you know what you are doing, '
+                "regressors passed for the restricted and unrestricted models are of "
+                "different types. This does not really make much sense for the purposes "
+                "of Granger causality testing because the performance of different types "
+                "of regressors could be vastly different, which could lead to erroneous "
+                "conclusions regarding Granger causality. If you know what you are doing, "
                 'you can re-run with check_model_type_match="warn" or '
                 'check_model_type_match="ignore"'
             )
@@ -980,8 +956,7 @@ def mlcausality(
                     "'gradientboostingregressor','histgradientboostingregressor']"
                 )
             if not isinstance(early_stop_min_samples, int):
-                raise TypeError(
-                    "early_stop_min_samples must be an int")
+                raise TypeError("early_stop_min_samples must be an int")
             # if we have less than early_stop_min_samples samples for validation, do not
             # use early stopping. Otherwise, use early stopping
             if (
@@ -1007,55 +982,37 @@ def mlcausality(
                 if logdiff:
                     val = deepcopy(
                         train[
-                            round((1 - early_stop_frac)
-                                  * (train.shape[0] + 1))
-                            - 1:,
+                            round((1 - early_stop_frac) * (train.shape[0] + 1)) - 1 :,
                             :,
                         ]
                     )
                     train = deepcopy(
                         train[
-                            : round(
-                                (1 - early_stop_frac) *
-                                (train.shape[0] + 1)
-                            )
-                            - 1,
+                            : round((1 - early_stop_frac) * (train.shape[0] + 1)) - 1,
                             :,
                         ]
                     )
                 else:
                     val = deepcopy(
-                        train[
-                            round((1 - early_stop_frac) * train.shape[0]):, :
-                        ]
+                        train[round((1 - early_stop_frac) * train.shape[0]) :, :]
                     )
                     train = deepcopy(
-                        train[
-                            : round((1 - early_stop_frac) * train.shape[0]), :
-                        ]
+                        train[: round((1 - early_stop_frac) * train.shape[0]), :]
                     )
         if regressor.lower() == "catboostregressor":
             from catboost import CatBoostRegressor
 
             if early_stop:
-                params_restrict.update(
-                    {"early_stopping_rounds": early_stop_rounds}
-                )
-                params_unrestrict.update(
-                    {"early_stopping_rounds": early_stop_rounds}
-                )
+                params_restrict.update({"early_stopping_rounds": early_stop_rounds})
+                params_unrestrict.update({"early_stopping_rounds": early_stop_rounds})
             model_restrict = CatBoostRegressor(**params_restrict)
             model_unrestrict = CatBoostRegressor(**params_unrestrict)
         elif regressor.lower() == "xgbregressor":
             from xgboost import XGBRegressor
 
             if early_stop:
-                params_restrict.update(
-                    {"early_stopping_rounds": early_stop_rounds}
-                )
-                params_unrestrict.update(
-                    {"early_stopping_rounds": early_stop_rounds}
-                )
+                params_restrict.update({"early_stopping_rounds": early_stop_rounds})
+                params_unrestrict.update({"early_stopping_rounds": early_stop_rounds})
             model_restrict = XGBRegressor(**params_restrict)
             model_unrestrict = XGBRegressor(**params_unrestrict)
         elif regressor.lower() == "lgbmregressor":
@@ -1073,8 +1030,7 @@ def mlcausality(
             from sklearn.ensemble import RandomForestRegressor
 
             model_restrict = RandomForestRegressor(**params_restrict)
-            model_unrestrict = RandomForestRegressor(
-                **params_unrestrict)
+            model_unrestrict = RandomForestRegressor(**params_unrestrict)
         elif regressor.lower() == "svr":
             from sklearn.svm import SVR
 
@@ -1091,10 +1047,8 @@ def mlcausality(
         ):
             from sklearn.gaussian_process import GaussianProcessRegressor
 
-            model_restrict = GaussianProcessRegressor(
-                **params_restrict)
-            model_unrestrict = GaussianProcessRegressor(
-                **params_unrestrict)
+            model_restrict = GaussianProcessRegressor(**params_restrict)
+            model_unrestrict = GaussianProcessRegressor(**params_unrestrict)
         elif (
             regressor.lower() == "kernelridge"
             or regressor.lower() == "kernelridgeregressor"
@@ -1104,10 +1058,7 @@ def mlcausality(
 
             model_restrict = KernelRidge(**params_restrict)
             model_unrestrict = KernelRidge(**params_unrestrict)
-        elif (
-            regressor.lower() == "kneighborsregressor"
-            or regressor.lower() == "knn"
-        ):
+        elif regressor.lower() == "kneighborsregressor" or regressor.lower() == "knn":
             from sklearn.neighbors import KNeighborsRegressor
 
             model_restrict = KNeighborsRegressor(**params_restrict)
@@ -1115,18 +1066,13 @@ def mlcausality(
         elif regressor.lower() == "gradientboostingregressor":
             from sklearn.ensemble import GradientBoostingRegressor
 
-            model_restrict = GradientBoostingRegressor(
-                **params_restrict)
-            model_unrestrict = GradientBoostingRegressor(
-                **params_unrestrict)
+            model_restrict = GradientBoostingRegressor(**params_restrict)
+            model_unrestrict = GradientBoostingRegressor(**params_unrestrict)
         elif regressor.lower() == "histgradientboostingregressor":
             from sklearn.ensemble import HistGradientBoostingRegressor
 
-            model_restrict = HistGradientBoostingRegressor(
-                **params_restrict)
-            model_unrestrict = HistGradientBoostingRegressor(
-                **params_unrestrict
-            )
+            model_restrict = HistGradientBoostingRegressor(**params_restrict)
+            model_unrestrict = HistGradientBoostingRegressor(**params_unrestrict)
         elif regressor.lower() == "cuml_svr":
             from cuml.svm import SVR
 
@@ -1136,12 +1082,9 @@ def mlcausality(
             from cuml.ensemble import RandomForestRegressor
 
             model_restrict = RandomForestRegressor(**params_restrict)
-            model_unrestrict = RandomForestRegressor(
-                **params_unrestrict)
+            model_unrestrict = RandomForestRegressor(**params_unrestrict)
         else:
-            raise ValueError(
-                "unidentified string regressor passed to mlcausality"
-            )
+            raise ValueError("unidentified string regressor passed to mlcausality")
     train_integ = train
     test_integ = test
     if early_stop:
@@ -1156,73 +1099,73 @@ def mlcausality(
         scaler_postsplit_1_dict["y"] = init_scaler(
             scaler=scaler_postsplit_1, scaler_params=scaler_postsplit_1_params
         )
-        train_integ[:, : y.shape[1]] = scaler_postsplit_1_dict[
-            "y"
-        ].fit_transform(train_integ[:, : y.shape[1]])
+        train_integ[:, : y.shape[1]] = scaler_postsplit_1_dict["y"].fit_transform(
+            train_integ[:, : y.shape[1]]
+        )
         test_integ[:, : y.shape[1]] = scaler_postsplit_1_dict["y"].transform(
             test_integ[:, : y.shape[1]]
         )
         if early_stop:
-            val_integ[:, : y.shape[1]] = scaler_postsplit_1_dict[
-                "y"
-            ].transform(val_integ[:, : y.shape[1]])
+            val_integ[:, : y.shape[1]] = scaler_postsplit_1_dict["y"].transform(
+                val_integ[:, : y.shape[1]]
+            )
         if not return_restrict_only:
             scaler_postsplit_1_dict["X"] = init_scaler(
                 scaler=scaler_postsplit_1,
                 scaler_params=scaler_postsplit_1_params,
             )
-            train_integ[:, y.shape[1]:] = scaler_postsplit_1_dict[
-                "X"
-            ].fit_transform(train_integ[:, y.shape[1]:])
-            test_integ[:, y.shape[1]:] = scaler_postsplit_1_dict[
-                "X"
-            ].transform(test_integ[:, y.shape[1]:])
+            train_integ[:, y.shape[1] :] = scaler_postsplit_1_dict["X"].fit_transform(
+                train_integ[:, y.shape[1] :]
+            )
+            test_integ[:, y.shape[1] :] = scaler_postsplit_1_dict["X"].transform(
+                test_integ[:, y.shape[1] :]
+            )
             if early_stop:
-                val_integ[:, y.shape[1]:] = scaler_postsplit_1_dict[
-                    "X"
-                ].transform(val_integ[:, y.shape[1]:])
+                val_integ[:, y.shape[1] :] = scaler_postsplit_1_dict["X"].transform(
+                    val_integ[:, y.shape[1] :]
+                )
     # scaler_postsplit_2
     if scaler_postsplit_2 is not None:
         scaler_postsplit_2_dict = {}
         scaler_postsplit_2_dict["y"] = init_scaler(
             scaler=scaler_postsplit_2, scaler_params=scaler_postsplit_2_params
         )
-        train_integ[:, : y.shape[1]] = scaler_postsplit_2_dict[
-            "y"
-        ].fit_transform(train_integ[:, : y.shape[1]])
+        train_integ[:, : y.shape[1]] = scaler_postsplit_2_dict["y"].fit_transform(
+            train_integ[:, : y.shape[1]]
+        )
         test_integ[:, : y.shape[1]] = scaler_postsplit_2_dict["y"].transform(
             test_integ[:, : y.shape[1]]
         )
         if early_stop:
-            val_integ[:, : y.shape[1]] = scaler_postsplit_2_dict[
-                "y"
-            ].transform(val_integ[:, : y.shape[1]])
+            val_integ[:, : y.shape[1]] = scaler_postsplit_2_dict["y"].transform(
+                val_integ[:, : y.shape[1]]
+            )
         if not return_restrict_only:
             scaler_postsplit_2_dict["X"] = init_scaler(
                 scaler=scaler_postsplit_2,
                 scaler_params=scaler_postsplit_2_params,
             )
-            train_integ[:, y.shape[1]:] = scaler_postsplit_2_dict[
-                "X"
-            ].fit_transform(train_integ[:, y.shape[1]:])
-            test_integ[:, y.shape[1]:] = scaler_postsplit_2_dict[
-                "X"
-            ].transform(test_integ[:, y.shape[1]:])
+            train_integ[:, y.shape[1] :] = scaler_postsplit_2_dict["X"].fit_transform(
+                train_integ[:, y.shape[1] :]
+            )
+            test_integ[:, y.shape[1] :] = scaler_postsplit_2_dict["X"].transform(
+                test_integ[:, y.shape[1] :]
+            )
             if early_stop:
-                val_integ[:, y.shape[1]:] = scaler_postsplit_2_dict[
-                    "X"
-                ].transform(val_integ[:, y.shape[1]:])
+                val_integ[:, y.shape[1] :] = scaler_postsplit_2_dict["X"].transform(
+                    val_integ[:, y.shape[1] :]
+                )
     # y bounds error
     if y_bounds_error == "raise":
         if np.nanmax(train_integ[lag:, 0]) < np.nanmax(
             test_integ[lag:, 0]
         ) or np.nanmin(train_integ[lag:, 0]) > np.nanmin(test_integ[lag:, 0]):
             raise ValueError(
-                '[y_test_min,y_test_max] is not a subset of [y_train_min,y_train_max]. '
-                'Since many algorithms, especially tree-based algorithms, cannot '
-                'extrapolate, this could result in erroneous conclusions regarding '
-                'Granger causality. If you would still like to perform the Granger '
-                'causality test anyway, re-run mlcausality with y_bounds_error set to '
+                "[y_test_min,y_test_max] is not a subset of [y_train_min,y_train_max]. "
+                "Since many algorithms, especially tree-based algorithms, cannot "
+                "extrapolate, this could result in erroneous conclusions regarding "
+                "Granger causality. If you would still like to perform the Granger "
+                "causality test anyway, re-run mlcausality with y_bounds_error set to "
                 'either "warn" or "ignore".'
             )
     elif y_bounds_error == "warn":
@@ -1245,22 +1188,16 @@ def mlcausality(
         test_integ[lag:, 0].shape[0] - inside_bounds_idx.shape[0]
     ) / test_integ[lag:, 0].shape[0]
     if return_inside_bounds_mask:
-        inside_bounds_mask = inside_bounds_mask_init.astype(
-            float).flatten()
+        inside_bounds_mask = inside_bounds_mask_init.astype(float).flatten()
         inside_bounds_mask[inside_bounds_mask == 0] = np.nan
     # Sliding window views
     # Lag+1 gives lag features plus the target column
-    train_sw = sliding_window_view(
-        train_integ, [lag + 1, data_scaled.shape[1]]
-    )
+    train_sw = sliding_window_view(train_integ, [lag + 1, data_scaled.shape[1]])
     # Lag+1 gives lag features plus the target column
-    test_sw = sliding_window_view(
-        test_integ, [lag + 1, data_scaled.shape[1]])
+    test_sw = sliding_window_view(test_integ, [lag + 1, data_scaled.shape[1]])
     if early_stop:
         # Lag+1 gives lag features plus the target column
-        val_sw = sliding_window_view(
-            val_integ, [lag + 1, data_scaled.shape[1]]
-        )
+        val_sw = sliding_window_view(val_integ, [lag + 1, data_scaled.shape[1]])
     # Reshape data
     train_sw_reshape_restrict = train_sw[:, :, :, : y.shape[1]].reshape(
         train_sw[:, :, :, : y.shape[1]].shape[0],
@@ -1312,13 +1249,10 @@ def mlcausality(
                 val_sw_reshape_restrict[:, : -y.shape[1]]
             )
     else:
-        X_train_dm_restricted = train_sw_reshape_restrict[:,
-                                                          : -y.shape[1]]
-        X_test_dm_restricted = test_sw_reshape_restrict[:,
-                                                        : -y.shape[1]]
+        X_train_dm_restricted = train_sw_reshape_restrict[:, : -y.shape[1]]
+        X_test_dm_restricted = test_sw_reshape_restrict[:, : -y.shape[1]]
         if early_stop:
-            X_val_dm_restricted = val_sw_reshape_restrict[:,
-                                                          : -y.shape[1]]
+            X_val_dm_restricted = val_sw_reshape_restrict[:, : -y.shape[1]]
     if scaler_dm_2 is not None:
         scaler_dm_2_dict = {}
         scaler_dm_2_dict["restricted"] = init_scaler(
@@ -1341,20 +1275,15 @@ def mlcausality(
             scaler_dm_1_dict["unrestricted"] = init_scaler(
                 scaler=scaler_dm_1, scaler_params=scaler_dm_1_params
             )
-            X_train_dm_unrestricted = scaler_dm_1_dict[
-                "unrestricted"
-            ].fit_transform(
+            X_train_dm_unrestricted = scaler_dm_1_dict["unrestricted"].fit_transform(
                 train_sw_reshape_unrestrict[:, : -data_scaled.shape[1]]
             )
-            X_test_dm_unrestricted = scaler_dm_1_dict[
-                "unrestricted"
-            ].transform(test_sw_reshape_unrestrict[:, : -data_scaled.shape[1]])
+            X_test_dm_unrestricted = scaler_dm_1_dict["unrestricted"].transform(
+                test_sw_reshape_unrestrict[:, : -data_scaled.shape[1]]
+            )
             if early_stop:
-                X_val_dm_unrestricted = scaler_dm_1_dict[
-                    "unrestricted"
-                ].transform(
-                    val_sw_reshape_unrestrict[:,
-                                              : -data_scaled.shape[1]]
+                X_val_dm_unrestricted = scaler_dm_1_dict["unrestricted"].transform(
+                    val_sw_reshape_unrestrict[:, : -data_scaled.shape[1]]
                 )
         else:
             X_train_dm_unrestricted = train_sw_reshape_unrestrict[
@@ -1372,16 +1301,16 @@ def mlcausality(
             scaler_dm_2_dict["unrestricted"] = init_scaler(
                 scaler=scaler_dm_2, scaler_params=scaler_dm_2_params
             )
-            X_train_dm_unrestricted = scaler_dm_2_dict[
-                "unrestricted"
-            ].fit_transform(X_train_dm_unrestricted)
-            X_test_dm_unrestricted = scaler_dm_2_dict[
-                "unrestricted"
-            ].transform(X_test_dm_unrestricted)
+            X_train_dm_unrestricted = scaler_dm_2_dict["unrestricted"].fit_transform(
+                X_train_dm_unrestricted
+            )
+            X_test_dm_unrestricted = scaler_dm_2_dict["unrestricted"].transform(
+                X_test_dm_unrestricted
+            )
             if early_stop:
-                X_val_dm_unrestricted = scaler_dm_2_dict[
-                    "unrestricted"
-                ].transform(X_val_dm_unrestricted)
+                X_val_dm_unrestricted = scaler_dm_2_dict["unrestricted"].transform(
+                    X_val_dm_unrestricted
+                )
     # Handle early stopping
     if (
         isinstance(regressor, str)
@@ -1404,9 +1333,7 @@ def mlcausality(
                     "eval_set": [
                         (
                             X_val_dm_unrestricted,
-                            val_sw_reshape_unrestrict[
-                                :, -data_scaled.shape[1]
-                            ],
+                            val_sw_reshape_unrestrict[:, -data_scaled.shape[1]],
                         )
                     ]
                 }
@@ -1454,9 +1381,7 @@ def mlcausality(
                     "eval_set": [
                         (
                             X_val_dm_unrestricted,
-                            val_sw_reshape_unrestrict[
-                                :, -data_scaled.shape[1]
-                            ],
+                            val_sw_reshape_unrestrict[:, -data_scaled.shape[1]],
                         )
                     ],
                 }
@@ -1467,8 +1392,7 @@ def mlcausality(
         train_sw_reshape_restrict[:, -y.shape[1]],
         **regressor_fit_params_restrict,
     )
-    preds_restrict = model_restrict.predict(
-        X_test_dm_restricted).flatten()
+    preds_restrict = model_restrict.predict(X_test_dm_restricted).flatten()
     if not return_restrict_only:
         # Fit unrestricted model
         model_unrestrict.fit(
@@ -1476,9 +1400,7 @@ def mlcausality(
             train_sw_reshape_unrestrict[:, -data_scaled.shape[1]],
             **regressor_fit_params_unrestrict,
         )
-        preds_unrestrict = model_unrestrict.predict(
-            X_test_dm_unrestricted
-        ).flatten()
+        preds_unrestrict = model_unrestrict.predict(X_test_dm_unrestricted).flatten()
     # Transform preds and ytrue if transformations were originally applied
     if not split_override and split is not None:
         if logdiff:
@@ -1489,7 +1411,7 @@ def mlcausality(
         ytrue = ytrue[split_unadj, [0]]
         ytrue = ytrue[lag:]
     else:
-        ytrue = ytrue[-preds_restrict.shape[0]:, [0]]
+        ytrue = ytrue[-preds_restrict.shape[0] :, [0]]
     if scaler_postsplit_2 is not None:
         if y.shape[1] > 1:
             preds_restrict_for_scaler_postsplit_2 = np.concatenate(
@@ -1503,18 +1425,15 @@ def mlcausality(
                 preds_unrestrict_for_scaler_postsplit_2 = np.concatenate(
                     [
                         preds_unrestrict.reshape(-1, 1),
-                        np.zeros_like(
-                            y[: preds_unrestrict.shape[0], 1:]),
+                        np.zeros_like(y[: preds_unrestrict.shape[0], 1:]),
                     ],
                     axis=1,
                 )
         else:
-            preds_restrict_for_scaler_postsplit_2 = preds_restrict.reshape(
-                -1, 1
-            )
+            preds_restrict_for_scaler_postsplit_2 = preds_restrict.reshape(-1, 1)
             if not return_restrict_only:
-                preds_unrestrict_for_scaler_postsplit_2 = (
-                    preds_unrestrict.reshape(-1, 1)
+                preds_unrestrict_for_scaler_postsplit_2 = preds_unrestrict.reshape(
+                    -1, 1
                 )
         preds_restrict = (
             scaler_postsplit_2_dict["y"]
@@ -1524,9 +1443,7 @@ def mlcausality(
         if not return_restrict_only:
             preds_unrestrict = (
                 scaler_postsplit_2_dict["y"]
-                .inverse_transform(preds_unrestrict_for_scaler_postsplit_2)[
-                    :, 0
-                ]
+                .inverse_transform(preds_unrestrict_for_scaler_postsplit_2)[:, 0]
                 .flatten()
             )
     if scaler_postsplit_1 is not None:
@@ -1542,18 +1459,15 @@ def mlcausality(
                 preds_unrestrict_for_scaler_postsplit_1 = np.concatenate(
                     [
                         preds_unrestrict.reshape(-1, 1),
-                        np.zeros_like(
-                            y[: preds_unrestrict.shape[0], 1:]),
+                        np.zeros_like(y[: preds_unrestrict.shape[0], 1:]),
                     ],
                     axis=1,
                 )
         else:
-            preds_restrict_for_scaler_postsplit_1 = preds_restrict.reshape(
-                -1, 1
-            )
+            preds_restrict_for_scaler_postsplit_1 = preds_restrict.reshape(-1, 1)
             if not return_restrict_only:
-                preds_unrestrict_for_scaler_postsplit_1 = (
-                    preds_unrestrict.reshape(-1, 1)
+                preds_unrestrict_for_scaler_postsplit_1 = preds_unrestrict.reshape(
+                    -1, 1
                 )
         preds_restrict = (
             scaler_postsplit_1_dict["y"]
@@ -1563,9 +1477,7 @@ def mlcausality(
         if not return_restrict_only:
             preds_unrestrict = (
                 scaler_postsplit_1_dict["y"]
-                .inverse_transform(preds_unrestrict_for_scaler_postsplit_1)[
-                    :, 0
-                ]
+                .inverse_transform(preds_unrestrict_for_scaler_postsplit_1)[:, 0]
                 .flatten()
             )
     if scaler_postlogdiff_2 is not None:
@@ -1581,18 +1493,15 @@ def mlcausality(
                 preds_unrestrict_for_scaler_postlogdiff_2 = np.concatenate(
                     [
                         preds_unrestrict.reshape(-1, 1),
-                        np.zeros_like(
-                            y[: preds_unrestrict.shape[0], 1:]),
+                        np.zeros_like(y[: preds_unrestrict.shape[0], 1:]),
                     ],
                     axis=1,
                 )
         else:
-            preds_restrict_for_scaler_postlogdiff_2 = preds_restrict.reshape(
-                -1, 1
-            )
+            preds_restrict_for_scaler_postlogdiff_2 = preds_restrict.reshape(-1, 1)
             if not return_restrict_only:
-                preds_unrestrict_for_scaler_postlogdiff_2 = (
-                    preds_unrestrict.reshape(-1, 1)
+                preds_unrestrict_for_scaler_postlogdiff_2 = preds_unrestrict.reshape(
+                    -1, 1
                 )
         preds_restrict = (
             scaler_postlogdiff_2_dict["y"]
@@ -1602,9 +1511,7 @@ def mlcausality(
         if not return_restrict_only:
             preds_unrestrict = (
                 scaler_postlogdiff_2_dict["y"]
-                .inverse_transform(preds_unrestrict_for_scaler_postlogdiff_2)[
-                    :, 0
-                ]
+                .inverse_transform(preds_unrestrict_for_scaler_postlogdiff_2)[:, 0]
                 .flatten()
             )
     if scaler_postlogdiff_1 is not None:
@@ -1620,18 +1527,15 @@ def mlcausality(
                 preds_unrestrict_for_scaler_postlogdiff_1 = np.concatenate(
                     [
                         preds_unrestrict.reshape(-1, 1),
-                        np.zeros_like(
-                            y[: preds_unrestrict.shape[0], 1:]),
+                        np.zeros_like(y[: preds_unrestrict.shape[0], 1:]),
                     ],
                     axis=1,
                 )
         else:
-            preds_restrict_for_scaler_postlogdiff_1 = preds_restrict.reshape(
-                -1, 1
-            )
+            preds_restrict_for_scaler_postlogdiff_1 = preds_restrict.reshape(-1, 1)
             if not return_restrict_only:
-                preds_unrestrict_for_scaler_postlogdiff_1 = (
-                    preds_unrestrict.reshape(-1, 1)
+                preds_unrestrict_for_scaler_postlogdiff_1 = preds_unrestrict.reshape(
+                    -1, 1
                 )
         preds_restrict = (
             scaler_postlogdiff_1_dict["y"]
@@ -1641,25 +1545,20 @@ def mlcausality(
         if not return_restrict_only:
             preds_unrestrict = (
                 scaler_postlogdiff_1_dict["y"]
-                .inverse_transform(preds_unrestrict_for_scaler_postlogdiff_1)[
-                    :, 0
-                ]
+                .inverse_transform(preds_unrestrict_for_scaler_postlogdiff_1)[:, 0]
                 .flatten()
             )
     if logdiff:
         if not split_override and split is not None:
             prelogdiff_mult = prelogdiff_outcome[split[1]]
-            prelogdiff_mult = prelogdiff_mult[lag + 1:].flatten()
+            prelogdiff_mult = prelogdiff_mult[lag + 1 :].flatten()
         else:
             prelogdiff_mult = prelogdiff_outcome[
-                -preds_restrict.shape[0] - 1: -1, 0
+                -preds_restrict.shape[0] - 1 : -1, 0
             ].flatten()
-        preds_restrict = (np.exp(preds_restrict) *
-                          prelogdiff_mult).flatten()
+        preds_restrict = (np.exp(preds_restrict) * prelogdiff_mult).flatten()
         if not return_restrict_only:
-            preds_unrestrict = (
-                np.exp(preds_unrestrict) * prelogdiff_mult
-            ).flatten()
+            preds_unrestrict = (np.exp(preds_unrestrict) * prelogdiff_mult).flatten()
     if scaler_prelogdiff_2 is not None:
         if y.shape[1] > 1:
             preds_restrict_for_scaler_prelogdiff_2 = np.concatenate(
@@ -1673,18 +1572,15 @@ def mlcausality(
                 preds_unrestrict_for_scaler_prelogdiff_2 = np.concatenate(
                     [
                         preds_unrestrict.reshape(-1, 1),
-                        np.zeros_like(
-                            y[: preds_unrestrict.shape[0], 1:]),
+                        np.zeros_like(y[: preds_unrestrict.shape[0], 1:]),
                     ],
                     axis=1,
                 )
         else:
-            preds_restrict_for_scaler_prelogdiff_2 = preds_restrict.reshape(
-                -1, 1
-            )
+            preds_restrict_for_scaler_prelogdiff_2 = preds_restrict.reshape(-1, 1)
             if not return_restrict_only:
-                preds_unrestrict_for_scaler_prelogdiff_2 = (
-                    preds_unrestrict.reshape(-1, 1)
+                preds_unrestrict_for_scaler_prelogdiff_2 = preds_unrestrict.reshape(
+                    -1, 1
                 )
         preds_restrict = (
             scaler_prelogdiff_2_dict["y"]
@@ -1694,9 +1590,7 @@ def mlcausality(
         if not return_restrict_only:
             preds_unrestrict = (
                 scaler_prelogdiff_2_dict["y"]
-                .inverse_transform(preds_unrestrict_for_scaler_prelogdiff_2)[
-                    :, 0
-                ]
+                .inverse_transform(preds_unrestrict_for_scaler_prelogdiff_2)[:, 0]
                 .flatten()
             )
     if scaler_prelogdiff_1 is not None:
@@ -1712,18 +1606,15 @@ def mlcausality(
                 preds_unrestrict_for_scaler_prelogdiff_1 = np.concatenate(
                     [
                         preds_unrestrict.reshape(-1, 1),
-                        np.zeros_like(
-                            y[: preds_unrestrict.shape[0], 1:]),
+                        np.zeros_like(y[: preds_unrestrict.shape[0], 1:]),
                     ],
                     axis=1,
                 )
         else:
-            preds_restrict_for_scaler_prelogdiff_1 = preds_restrict.reshape(
-                -1, 1
-            )
+            preds_restrict_for_scaler_prelogdiff_1 = preds_restrict.reshape(-1, 1)
             if not return_restrict_only:
-                preds_unrestrict_for_scaler_prelogdiff_1 = (
-                    preds_unrestrict.reshape(-1, 1)
+                preds_unrestrict_for_scaler_prelogdiff_1 = preds_unrestrict.reshape(
+                    -1, 1
                 )
         preds_restrict = (
             scaler_prelogdiff_1_dict["y"]
@@ -1733,9 +1624,7 @@ def mlcausality(
         if not return_restrict_only:
             preds_unrestrict = (
                 scaler_prelogdiff_1_dict["y"]
-                .inverse_transform(preds_unrestrict_for_scaler_prelogdiff_1)[
-                    :, 0
-                ]
+                .inverse_transform(preds_unrestrict_for_scaler_prelogdiff_1)[:, 0]
                 .flatten()
             )
     # Calculate errors
@@ -1743,12 +1632,11 @@ def mlcausality(
     if not return_restrict_only:
         errors_unrestrict = preds_unrestrict - ytrue.flatten()
         if y_bounds_violation_sign_drop:
-            error_delta = np.abs(
-                errors_restrict[inside_bounds_idx].flatten()
-            ) - np.abs(errors_unrestrict[inside_bounds_idx].flatten())
+            error_delta = np.abs(errors_restrict[inside_bounds_idx].flatten()) - np.abs(
+                errors_unrestrict[inside_bounds_idx].flatten()
+            )
             error_delta_num_positive = (error_delta > 0).sum()
-            error_delta_len = error_delta[~np.isnan(
-                error_delta)].shape[0]
+            error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
             sign_test_result = binomtest(
                 error_delta_num_positive,
                 error_delta_len,
@@ -1761,16 +1649,13 @@ def mlcausality(
                 nan_policy="omit",
                 zero_method="wilcox",
             )
-            wilcoxon_num_preds = (
-                errors_restrict[inside_bounds_idx].flatten().shape[0]
-            )
+            wilcoxon_num_preds = errors_restrict[inside_bounds_idx].flatten().shape[0]
         else:
             error_delta = np.abs(errors_restrict.flatten()) - np.abs(
                 errors_unrestrict.flatten()
             )
             error_delta_num_positive = (error_delta > 0).sum()
-            error_delta_len = error_delta[~np.isnan(
-                error_delta)].shape[0]
+            error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
             sign_test_result = binomtest(
                 error_delta_num_positive,
                 error_delta_len,
@@ -1789,26 +1674,19 @@ def mlcausality(
             errors2_restrict = errors_restrict**2
             errors2_unrestrict = errors_unrestrict**2
             f_dfn = lag * y.shape[1]
-            f_dfd = (
-                errors2_restrict.shape[0]
-                - (lag * (y.shape[1] + X.shape[1]))
-                - 1
-            )
+            f_dfd = errors2_restrict.shape[0] - (lag * (y.shape[1] + X.shape[1])) - 1
             if f_dfd <= 0:
                 f_stat = np.nan
                 ftest_p_value = np.nan
             else:
                 f_stat = (
-                    (errors2_restrict.sum() -
-                     errors2_unrestrict.sum()) / f_dfn
+                    (errors2_restrict.sum() - errors2_unrestrict.sum()) / f_dfn
                 ) / (errors2_unrestrict.sum() / f_dfd)
                 ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
     if normality_tests:
         shapiro_restrict = shapiro(errors_restrict.flatten())
         anderson_restrict = anderson(errors_restrict.flatten())
-        jarque_bera_restrict = jarque_bera(
-            errors_restrict.flatten(), nan_policy="omit"
-        )
+        jarque_bera_restrict = jarque_bera(errors_restrict.flatten(), nan_policy="omit")
         if not return_restrict_only:
             shapiro_unrestrict = shapiro(errors_unrestrict.flatten())
             anderson_unrestrict = anderson(errors_unrestrict.flatten())
@@ -1816,15 +1694,12 @@ def mlcausality(
                 errors_unrestrict.flatten(), nan_policy="omit"
             )
     if acorr_tests:
-        durbin_watson_restricted = durbin_watson(
-            errors_restrict.flatten())
+        durbin_watson_restricted = durbin_watson(errors_restrict.flatten())
         acorr_ljungbox_restricted = acorr_ljungbox(
             errors_restrict.flatten(), auto_lag=True, model_df=lag * y.shape[1]
         )
         if not return_restrict_only:
-            durbin_watson_unrestricted = durbin_watson(
-                errors_unrestrict.flatten()
-            )
+            durbin_watson_unrestricted = durbin_watson(errors_unrestrict.flatten())
             acorr_ljungbox_unrestricted = acorr_ljungbox(
                 errors_unrestrict.flatten(),
                 auto_lag=True,
@@ -1837,13 +1712,9 @@ def mlcausality(
             ]
         )
         preds_empty[:] = np.nan
-        preds_restrict_nanfilled = np.concatenate(
-            [preds_empty, preds_restrict]
-        )
+        preds_restrict_nanfilled = np.concatenate([preds_empty, preds_restrict])
         if not return_restrict_only:
-            preds_unrestrict_nanfilled = np.concatenate(
-                [preds_empty, preds_unrestrict]
-            )
+            preds_unrestrict_nanfilled = np.concatenate([preds_empty, preds_unrestrict])
         ytrue_nanfilled = y[:, [0]]
     return_dict = {
         "summary": {
@@ -1861,9 +1732,7 @@ def mlcausality(
                 "effective_val_obs": val_integ[lag:, 0].shape[0],
             }
         )
-    return_dict["summary"].update(
-        {"outside_bounds_frac": outside_bounds_frac}
-    ),
+    return_dict["summary"].update({"outside_bounds_frac": outside_bounds_frac}),
     if not return_restrict_only:
         return_dict["summary"].update(
             {
@@ -2010,13 +1879,9 @@ def mlcausality(
             return_dict["summary"].update(
                 {"durbin_watson": {"restricted": durbin_watson_restricted}}
             )
-            return_dict.update(
-                {"ljungbox": {"restricted": acorr_ljungbox_restricted}}
-            )
+            return_dict.update({"ljungbox": {"restricted": acorr_ljungbox_restricted}})
     if return_summary_df:
-        return_dict.update(
-            {"summary_df": pd.json_normalize(return_dict["summary"])}
-        )
+        return_dict.update({"summary_df": pd.json_normalize(return_dict["summary"])})
     if return_kwargs_dict:
         return_dict.update({"kwargs_dict": kwargs_dict})
     if return_kwargs_dict and kwargs_in_summary_df:
@@ -2084,30 +1949,22 @@ def mlcausality(
             return_dict.update(
                 {
                     "ytrue_nanfilled": ytrue_nanfilled,
-                    "preds_nanfilled": {
-                        "restricted": preds_restrict_nanfilled
-                    },
+                    "preds_nanfilled": {"restricted": preds_restrict_nanfilled},
                 }
             )
         if return_models:
             return_scalers = True
-            return_dict.update(
-                {"models": {"restricted": model_restrict}})
+            return_dict.update({"models": {"restricted": model_restrict}})
         if return_errors:
-            return_dict.update(
-                {"errors": {"restricted": errors_restrict}})
+            return_dict.update({"errors": {"restricted": errors_restrict}})
     if return_inside_bounds_mask:
         return_dict.update({"inside_bounds_mask": inside_bounds_mask})
     if return_scalers:
         return_dict.update({"scalers": {}})
         if scaler_init_1 is not None:
-            return_dict["scalers"].update(
-                {"scaler_init_1": scaler_init_1_dict}
-            )
+            return_dict["scalers"].update({"scaler_init_1": scaler_init_1_dict})
         if scaler_init_2 is not None:
-            return_dict["scalers"].update(
-                {"scaler_init_2": scaler_init_2_dict}
-            )
+            return_dict["scalers"].update({"scaler_init_2": scaler_init_2_dict})
         if scaler_prelogdiff_1 is not None:
             return_dict["scalers"].update(
                 {"scaler_prelogdiff_1": scaler_prelogdiff_1_dict}
@@ -2125,11 +1982,9 @@ def mlcausality(
                 {"scaler_postlogdiff_2": scaler_postlogdiff_2_dict}
             )
         if scaler_dm_1 is not None:
-            return_dict["scalers"].update(
-                {"scaler_dm_1": scaler_dm_1_dict})
+            return_dict["scalers"].update({"scaler_dm_1": scaler_dm_1_dict})
         if scaler_dm_2 is not None:
-            return_dict["scalers"].update(
-                {"scaler_dm_2": scaler_dm_2_dict})
+            return_dict["scalers"].update({"scaler_dm_2": scaler_dm_2_dict})
     if pretty_print:
         pretty_dict(
             return_dict["summary"],
@@ -2333,8 +2188,7 @@ def bivariate_mlcausality(
     else:
         hasnames = False
     if permute_list is None:
-        permute_list = list(
-            itertools.permutations(range(data.shape[1]), 2))
+        permute_list = list(itertools.permutations(range(data.shape[1]), 2))
     if return_pvalue_matrix_only:
         out_df = np.ones([data.shape[1], data.shape[1]])
     results_list = []
@@ -2350,44 +2204,34 @@ def bivariate_mlcausality(
         for X_idx in X_idx_list:
             data_unrestrict = data[:, [y_idx, X_idx]]
             for lag in lags:
-                unrestricted = mlcausality(
-                    X=None, y=data_unrestrict, lag=lag, **kwargs
-                )
+                unrestricted = mlcausality(X=None, y=data_unrestrict, lag=lag, **kwargs)
                 errors_unrestrict = unrestricted["errors"]["restricted"]
                 errors_restrict = restricted[lag]["errors"]["restricted"]
                 if ftest and not return_pvalue_matrix_only:
                     errors2_restrict = errors_restrict**2
                     errors2_unrestrict = errors_unrestrict**2
                     f_dfn = lag
-                    f_dfd = (
-                        errors2_restrict.shape[0] -
-                            (lag * data.shape[1]) - 1
-                    )
+                    f_dfd = errors2_restrict.shape[0] - (lag * data.shape[1]) - 1
                     if f_dfd <= 0:
                         f_stat = np.nan
                         ftest_p_value = np.nan
                     else:
                         f_stat = (
-                            (errors2_restrict.sum() -
-                             errors2_unrestrict.sum())
-                            / f_dfn
+                            (errors2_restrict.sum() - errors2_unrestrict.sum()) / f_dfn
                         ) / (errors2_unrestrict.sum() / f_dfd)
                         ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
                 if y_bounds_violation_sign_drop:
                     errors_unrestrict = (
-                        errors_unrestrict
-                        * restricted[lag]["inside_bounds_mask"]
+                        errors_unrestrict * restricted[lag]["inside_bounds_mask"]
                     )
                     errors_restrict = (
-                        errors_restrict *
-                        restricted[lag]["inside_bounds_mask"]
+                        errors_restrict * restricted[lag]["inside_bounds_mask"]
                     )
                 error_delta = np.abs(errors_restrict.flatten()) - np.abs(
                     errors_unrestrict.flatten()
                 )
                 error_delta_num_positive = (error_delta > 0).sum()
-                error_delta_len = error_delta[~np.isnan(
-                    error_delta)].shape[0]
+                error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
                 if (
                     return_pvalue_matrix_only
                     and (
@@ -2400,10 +2244,9 @@ def bivariate_mlcausality(
                         error_delta_len,
                         alternative="greater",
                     )
-                if (
-                    return_pvalue_matrix_only
-                    and pvalue_matrix_type == "wilcoxon"
-                ) or (not return_pvalue_matrix_only):
+                if (return_pvalue_matrix_only and pvalue_matrix_type == "wilcoxon") or (
+                    not return_pvalue_matrix_only
+                ):
                     wilcoxon_abserror = wilcoxon(
                         np.abs(errors_restrict.flatten()),
                         np.abs(errors_unrestrict.flatten()),
@@ -2629,8 +2472,7 @@ def loco_mlcausality(
     else:
         hasnames = False
     if permute_list is None:
-        permute_list = list(
-            itertools.permutations(range(data.shape[1]), 2))
+        permute_list = list(itertools.permutations(range(data.shape[1]), 2))
     if return_pvalue_matrix_only:
         out_df = np.ones([data.shape[1], data.shape[1]])
     else:
@@ -2651,9 +2493,7 @@ def loco_mlcausality(
                 X=None,
                 y=data[
                     :,
-                    [y_idx]
-                    + [i for i in range(data.shape[1])
-                       if i not in [y_idx]],
+                    [y_idx] + [i for i in range(data.shape[1]) if i not in [y_idx]],
                 ],
                 lag=lag,
                 **kwargs_unrestricted,
@@ -2661,49 +2501,37 @@ def loco_mlcausality(
         for X_idx in X_idx_list:
             data_restrict = data[
                 :,
-                [y_idx]
-                + [i for i in range(data.shape[1])
-                   if i not in [y_idx, X_idx]],
+                [y_idx] + [i for i in range(data.shape[1]) if i not in [y_idx, X_idx]],
             ]
             for lag in lags:
-                restricted = mlcausality(
-                    X=None, y=data_restrict, lag=lag, **kwargs
-                )
+                restricted = mlcausality(X=None, y=data_restrict, lag=lag, **kwargs)
                 errors_unrestrict = unrestricted[lag]["errors"]["restricted"]
                 errors_restrict = restricted["errors"]["restricted"]
                 if ftest:
                     errors2_restrict = errors_restrict**2
                     errors2_unrestrict = errors_unrestrict**2
                     f_dfn = lag
-                    f_dfd = (
-                        errors2_restrict.shape[0] -
-                            (lag * data.shape[1]) - 1
-                    )
+                    f_dfd = errors2_restrict.shape[0] - (lag * data.shape[1]) - 1
                     if f_dfd <= 0:
                         f_stat = np.nan
                         ftest_p_value = np.nan
                     else:
                         f_stat = (
-                            (errors2_restrict.sum() -
-                             errors2_unrestrict.sum())
-                            / f_dfn
+                            (errors2_restrict.sum() - errors2_unrestrict.sum()) / f_dfn
                         ) / (errors2_unrestrict.sum() / f_dfd)
                         ftest_p_value = scipyf.sf(f_stat, f_dfn, f_dfd)
                 if y_bounds_violation_sign_drop:
                     errors_unrestrict = (
-                        errors_unrestrict
-                        * unrestricted[lag]["inside_bounds_mask"]
+                        errors_unrestrict * unrestricted[lag]["inside_bounds_mask"]
                     )
                     errors_restrict = (
-                        errors_restrict
-                        * unrestricted[lag]["inside_bounds_mask"]
+                        errors_restrict * unrestricted[lag]["inside_bounds_mask"]
                     )
                 error_delta = np.abs(errors_restrict.flatten()) - np.abs(
                     errors_unrestrict.flatten()
                 )
                 error_delta_num_positive = (error_delta > 0).sum()
-                error_delta_len = error_delta[~np.isnan(
-                    error_delta)].shape[0]
+                error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
                 if (
                     return_pvalue_matrix_only
                     and (
@@ -2716,10 +2544,9 @@ def loco_mlcausality(
                         error_delta_len,
                         alternative="greater",
                     )
-                if (
-                    return_pvalue_matrix_only
-                    and pvalue_matrix_type == "wilcoxon"
-                ) or (not return_pvalue_matrix_only):
+                if (return_pvalue_matrix_only and pvalue_matrix_type == "wilcoxon") or (
+                    not return_pvalue_matrix_only
+                ):
                     wilcoxon_abserror = wilcoxon(
                         np.abs(errors_restrict.flatten()),
                         np.abs(errors_unrestrict.flatten()),
@@ -3218,9 +3045,7 @@ def multireg_mlcausality(
     early_stop = False
     if (
         (scaler_init_1 is not None and scaler_init_1.lower() == "normalizer")
-        or (
-            scaler_init_2 is not None and scaler_init_2.lower() == "normalizer"
-        )
+        or (scaler_init_2 is not None and scaler_init_2.lower() == "normalizer")
         or (
             scaler_prelogdiff_1 is not None
             and scaler_prelogdiff_1.lower() == "normalizer"
@@ -3251,11 +3076,9 @@ def multireg_mlcausality(
             "use it with other scalers"
         )
     if data is None or lag is None:
-        raise TypeError(
-            "You must supply data and lag to multireg_mlcausality")
+        raise TypeError("You must supply data and lag to multireg_mlcausality")
     if not isinstance(lag, int):
-        raise TypeError(
-            "lag was not passed as an int to multireg_mlcausality")
+        raise TypeError("lag was not passed as an int to multireg_mlcausality")
     if isinstance(data, (list, tuple)):
         data = np.atleast_2d(data).reshape(-1, 1)
     if isinstance(data, (pd.Series, pd.DataFrame)):
@@ -3264,14 +3087,11 @@ def multireg_mlcausality(
         else:
             data = data.to_numpy()
     if not isinstance(data, np.ndarray):
-        raise TypeError(
-            "data could not be cast to np.ndarray in multireg_mlcausality"
-        )
+        raise TypeError("data could not be cast to np.ndarray in multireg_mlcausality")
     if len(data.shape) == 1:
         data = np.atleast_2d(data).reshape(-1, 1)
     if not isinstance(logdiff, bool):
-        raise TypeError(
-            "logdiff must be a bool in multireg_mlcausality")
+        raise TypeError("logdiff must be a bool in multireg_mlcausality")
     if regressor.lower() == "catboostregressor":
         data = data.astype(np.float32)
     else:
@@ -3305,8 +3125,7 @@ def multireg_mlcausality(
             scaler=scaler_prelogdiff_1,
             scaler_params=scaler_prelogdiff_1_params,
         )
-        data_scaled = scaler_prelogdiff_1_dict["data"].fit_transform(
-            data)
+        data_scaled = scaler_prelogdiff_1_dict["data"].fit_transform(data)
     else:
         data_scaled = data
     if scaler_prelogdiff_2 is not None:
@@ -3315,9 +3134,7 @@ def multireg_mlcausality(
             scaler=scaler_prelogdiff_2,
             scaler_params=scaler_prelogdiff_2_params,
         )
-        data_scaled = scaler_prelogdiff_2_dict["data"].fit_transform(
-            data_scaled
-        )
+        data_scaled = scaler_prelogdiff_2_dict["data"].fit_transform(data_scaled)
     # Logdiff
     if logdiff:
         # Store outcome variable with current transformations.
@@ -3330,18 +3147,14 @@ def multireg_mlcausality(
             scaler=scaler_postlogdiff_1,
             scaler_params=scaler_postlogdiff_1_params,
         )
-        data_scaled = scaler_postlogdiff_1_dict["data"].fit_transform(
-            data_scaled
-        )
+        data_scaled = scaler_postlogdiff_1_dict["data"].fit_transform(data_scaled)
     if scaler_postlogdiff_2 is not None:
         scaler_postlogdiff_2_dict = {}
         scaler_postlogdiff_2_dict["data"] = init_scaler(
             scaler=scaler_postlogdiff_2,
             scaler_params=scaler_postlogdiff_2_params,
         )
-        data_scaled = scaler_postlogdiff_2_dict["data"].fit_transform(
-            data_scaled
-        )
+        data_scaled = scaler_postlogdiff_2_dict["data"].fit_transform(data_scaled)
     if not split_override and split is not None:
         if isinstance(split, types.GeneratorType):
             split = list(split)
@@ -3378,7 +3191,7 @@ def multireg_mlcausality(
             )
         if logdiff:
             train = data_scaled[: train_size - 1, :]
-            test = data_scaled[train_size - 1:, :]
+            test = data_scaled[train_size - 1 :, :]
         else:
             train = data_scaled[:train_size, :]
             test = data_scaled[train_size:, :]
@@ -3399,27 +3212,20 @@ def multireg_mlcausality(
             raise ValueError(
                 "train_size is a float that is too small resulting in no samples in train"
             )
-        elif (
-            not logdiff
-            and round((1 - train_size) * data.shape[0]) - lag - 1 < 0
-        ):
+        elif not logdiff and round((1 - train_size) * data.shape[0]) - lag - 1 < 0:
             raise ValueError(
                 "train_size is a float that is too large resulting in no samples in test"
             )
         else:
             if logdiff:
-                train = data_scaled[: round(
-                    train_size * data.shape[0]) - 1, :]
-                test = data_scaled[round(
-                    train_size * data.shape[0]) - 1:, :]
+                train = data_scaled[: round(train_size * data.shape[0]) - 1, :]
+                test = data_scaled[round(train_size * data.shape[0]) - 1 :, :]
             else:
-                train = data_scaled[: round(
-                    train_size * data.shape[0]), :]
-                test = data_scaled[round(
-                    train_size * data.shape[0]):, :]
+                train = data_scaled[: round(train_size * data.shape[0]), :]
+                test = data_scaled[round(train_size * data.shape[0]) :, :]
     else:
         raise TypeError(
-            'train_size must be provided as a float or int to multireg_mlcausality. '
+            "train_size must be provided as a float or int to multireg_mlcausality. "
             'Alternatively, you can provide a split to "split".'
         )
     # Regressors
@@ -3427,17 +3233,14 @@ def multireg_mlcausality(
         regressor_fit_params = {}
     if regressor_params is not None:
         if not isinstance(regressor_params, (dict)):
-            raise TypeError(
-                "regressor_params have to be one of None, dict")
+            raise TypeError("regressor_params have to be one of None, dict")
         else:
             pass
     else:
         regressor_params = {}
     if regressor.lower() == "catboostregressor":
         if "objective" not in regressor_params.keys():
-            regressor_params.update(
-                {"objective": "MultiRMSEWithMissingValues"}
-            )
+            regressor_params.update({"objective": "MultiRMSEWithMissingValues"})
         if "verbose" not in regressor_params.keys():
             regressor_params.update({"verbose": False})
         if (
@@ -3445,8 +3248,7 @@ def multireg_mlcausality(
             or early_stop_frac < 0
             or early_stop_frac >= 1
         ):
-            raise ValueError(
-                "early_stop_frac must be a float in [0,1)")
+            raise ValueError("early_stop_frac must be a float in [0,1)")
         if not isinstance(early_stop_min_samples, int):
             raise TypeError("early_stop_min_samples must be an int")
         # if we have less than early_stop_min_samples samples for validation, do not use
@@ -3462,9 +3264,7 @@ def multireg_mlcausality(
             early_stop = False
         elif (
             not logdiff
-            and round(early_stop_frac * train.shape[0])
-            - lag
-            - early_stop_min_samples
+            and round(early_stop_frac * train.shape[0]) - lag - early_stop_min_samples
             < 0
         ):
             early_stop = False
@@ -3474,34 +3274,27 @@ def multireg_mlcausality(
             if logdiff:
                 val = deepcopy(
                     train[
-                        round((1 - early_stop_frac)
-                              * (train.shape[0] + 1))
-                        - 1:,
+                        round((1 - early_stop_frac) * (train.shape[0] + 1)) - 1 :,
                         :,
                     ]
                 )
                 train = deepcopy(
                     train[
-                        : round((1 - early_stop_frac) * (train.shape[0] + 1))
-                        - 1,
+                        : round((1 - early_stop_frac) * (train.shape[0] + 1)) - 1,
                         :,
                     ]
                 )
             else:
                 val = deepcopy(
-                    train[round((1 - early_stop_frac)
-                                * train.shape[0]):, :]
+                    train[round((1 - early_stop_frac) * train.shape[0]) :, :]
                 )
                 train = deepcopy(
-                    train[: round((1 - early_stop_frac)
-                                  * train.shape[0]), :]
+                    train[: round((1 - early_stop_frac) * train.shape[0]), :]
                 )
         from catboost import CatBoostRegressor
 
         if early_stop:
-            regressor_params.update(
-                {"early_stopping_rounds": early_stop_rounds}
-            )
+            regressor_params.update({"early_stopping_rounds": early_stop_rounds})
         model = CatBoostRegressor(**regressor_params)
     elif (
         regressor.lower() == "kernelridge"
@@ -3524,27 +3317,19 @@ def multireg_mlcausality(
         scaler_postsplit_1_dict["data"] = init_scaler(
             scaler=scaler_postsplit_1, scaler_params=scaler_postsplit_1_params
         )
-        train_integ = scaler_postsplit_1_dict["data"].fit_transform(
-            train_integ
-        )
-        test_integ = scaler_postsplit_1_dict["data"].transform(
-            test_integ)
+        train_integ = scaler_postsplit_1_dict["data"].fit_transform(train_integ)
+        test_integ = scaler_postsplit_1_dict["data"].transform(test_integ)
         if early_stop:
-            val_integ = scaler_postsplit_1_dict["data"].transform(
-                val_integ)
+            val_integ = scaler_postsplit_1_dict["data"].transform(val_integ)
     if scaler_postsplit_2 is not None:
         scaler_postsplit_2_dict = {}
         scaler_postsplit_2_dict["data"] = init_scaler(
             scaler=scaler_postsplit_2, scaler_params=scaler_postsplit_2_params
         )
-        train_integ = scaler_postsplit_2_dict["data"].fit_transform(
-            train_integ
-        )
-        test_integ = scaler_postsplit_2_dict["data"].transform(
-            test_integ)
+        train_integ = scaler_postsplit_2_dict["data"].fit_transform(train_integ)
+        test_integ = scaler_postsplit_2_dict["data"].transform(test_integ)
         if early_stop:
-            val_integ = scaler_postsplit_2_dict["data"].transform(
-                val_integ)
+            val_integ = scaler_postsplit_2_dict["data"].transform(val_integ)
     # y bounds indicies
     if return_inside_bounds_mask:
         inside_bounds_mask = np.logical_and(
@@ -3562,17 +3347,12 @@ def multireg_mlcausality(
         inside_bounds_mask[inside_bounds_mask == 0] = np.nan
     # Sliding window views
     # Lag+1 gives lag features plus the target column
-    train_sw = sliding_window_view(
-        train_integ, [lag + 1, data_scaled.shape[1]]
-    )
+    train_sw = sliding_window_view(train_integ, [lag + 1, data_scaled.shape[1]])
     # Lag+1 gives lag features plus the target column
-    test_sw = sliding_window_view(
-        test_integ, [lag + 1, data_scaled.shape[1]])
+    test_sw = sliding_window_view(test_integ, [lag + 1, data_scaled.shape[1]])
     if early_stop:
         # Lag+1 gives lag features plus the target column
-        val_sw = sliding_window_view(
-            val_integ, [lag + 1, data_scaled.shape[1]]
-        )
+        val_sw = sliding_window_view(val_integ, [lag + 1, data_scaled.shape[1]])
     # Reshape data
     train_sw_reshape = train_sw.reshape(
         train_sw.shape[0],
@@ -3621,16 +3401,11 @@ def multireg_mlcausality(
     # Handle early stopping
     if early_stop:
         regressor_fit_params.update(
-            {
-                "eval_set": [
-                    (X_val_dm,
-                     val_sw_reshape[:, -data_scaled.shape[1]:])
-                ]
-            }
+            {"eval_set": [(X_val_dm, val_sw_reshape[:, -data_scaled.shape[1] :])]}
         )
     model.fit(
         X_train_dm,
-        train_sw_reshape[:, -data_scaled.shape[1]:],
+        train_sw_reshape[:, -data_scaled.shape[1] :],
         **regressor_fit_params,
     )
     preds = model.predict(X_test_dm)
@@ -3645,33 +3420,27 @@ def multireg_mlcausality(
         ytrue = ytrue[split_unadj]
         ytrue = ytrue[lag:]
     else:
-        ytrue = ytrue[-preds.shape[0]:]
+        ytrue = ytrue[-preds.shape[0] :]
     # Transform preds if transformations were originally applied
     if scaler_postsplit_2 is not None:
-        preds = scaler_postsplit_2_dict["data"].inverse_transform(
-            preds)
+        preds = scaler_postsplit_2_dict["data"].inverse_transform(preds)
     if scaler_postsplit_1 is not None:
-        preds = scaler_postsplit_1_dict["data"].inverse_transform(
-            preds)
+        preds = scaler_postsplit_1_dict["data"].inverse_transform(preds)
     if scaler_postlogdiff_2 is not None:
-        preds = scaler_postlogdiff_2_dict["data"].inverse_transform(
-            preds)
+        preds = scaler_postlogdiff_2_dict["data"].inverse_transform(preds)
     if scaler_postlogdiff_1 is not None:
-        preds = scaler_postlogdiff_1_dict["data"].inverse_transform(
-            preds)
+        preds = scaler_postlogdiff_1_dict["data"].inverse_transform(preds)
     if logdiff:
         if not split_override and split is not None:
             prelogdiff_mult = prelogdiff_data_scaled[split[1]]
-            prelogdiff_mult = prelogdiff_mult[lag + 1:]
+            prelogdiff_mult = prelogdiff_mult[lag + 1 :]
         else:
-            prelogdiff_mult = prelogdiff_data_scaled[-preds.shape[0] - 1: -1]
+            prelogdiff_mult = prelogdiff_data_scaled[-preds.shape[0] - 1 : -1]
         preds = np.exp(preds) * prelogdiff_mult
     if scaler_prelogdiff_2 is not None:
-        preds = scaler_prelogdiff_2_dict["data"].inverse_transform(
-            preds)
+        preds = scaler_prelogdiff_2_dict["data"].inverse_transform(preds)
     if scaler_prelogdiff_1 is not None:
-        preds = scaler_prelogdiff_1_dict["data"].inverse_transform(
-            preds)
+        preds = scaler_prelogdiff_1_dict["data"].inverse_transform(preds)
     return_dict = {
         "summary": {
             "lag": lag,
@@ -3682,9 +3451,7 @@ def multireg_mlcausality(
         }
     }
     if return_summary_df:
-        return_dict.update(
-            {"summary_df": pd.json_normalize(return_dict["summary"])}
-        )
+        return_dict.update({"summary_df": pd.json_normalize(return_dict["summary"])})
     if return_kwargs_dict:
         return_dict.update({"kwargs_dict": kwargs_dict})
     if return_kwargs_dict and kwargs_in_summary_df:
@@ -3716,13 +3483,9 @@ def multireg_mlcausality(
     if return_scalers:
         return_dict.update({"scalers": {}})
         if scaler_init_1 is not None:
-            return_dict["scalers"].update(
-                {"scaler_init_1": scaler_init_1_dict}
-            )
+            return_dict["scalers"].update({"scaler_init_1": scaler_init_1_dict})
         if scaler_init_2 is not None:
-            return_dict["scalers"].update(
-                {"scaler_init_2": scaler_init_2_dict}
-            )
+            return_dict["scalers"].update({"scaler_init_2": scaler_init_2_dict})
         if scaler_prelogdiff_1 is not None:
             return_dict["scalers"].update(
                 {"scaler_prelogdiff_1": scaler_prelogdiff_1_dict}
@@ -3740,11 +3503,9 @@ def multireg_mlcausality(
                 {"scaler_postlogdiff_2": scaler_postlogdiff_2_dict}
             )
         if scaler_dm_1 is not None:
-            return_dict["scalers"].update(
-                {"scaler_dm_1": scaler_dm_1_dict})
+            return_dict["scalers"].update({"scaler_dm_1": scaler_dm_1_dict})
         if scaler_dm_2 is not None:
-            return_dict["scalers"].update(
-                {"scaler_dm_2": scaler_dm_2_dict})
+            return_dict["scalers"].update({"scaler_dm_2": scaler_dm_2_dict})
     return return_dict
 
 
@@ -3865,16 +3626,13 @@ def multiloco_mlcausality(
     # unrestricted models
     unrestricted = {}
     for lag in lags:
-        unrestricted[lag] = multireg_mlcausality(
-            data, lag, **kwargs_unrestricted
-        )
+        unrestricted[lag] = multireg_mlcausality(data, lag, **kwargs_unrestricted)
     for skip_idx in permute_list:
         data_restrict = data[
             :, [i for i in range(data.shape[1]) if i not in [skip_idx]]
         ]
         for lag in lags:
-            restricted = multireg_mlcausality(
-                data_restrict, lag, **kwargs)
+            restricted = multireg_mlcausality(data_restrict, lag, **kwargs)
             errors_unrestrict = unrestricted[lag]["errors"][
                 :, [i for i in permute_list if i not in [skip_idx]]
             ]
@@ -3895,25 +3653,21 @@ def multiloco_mlcausality(
             for error_idx, y_idx in enumerate(
                 [i for i in permute_list if i not in [skip_idx]]
             ):
-                if (
-                    return_pvalue_matrix_only
-                    and pvalue_matrix_type == "wilcoxon"
-                ) or (not return_pvalue_matrix_only):
+                if (return_pvalue_matrix_only and pvalue_matrix_type == "wilcoxon") or (
+                    not return_pvalue_matrix_only
+                ):
                     wilcoxon_abserror = wilcoxon(
-                        np.abs(
-                            errors_restrict[:, error_idx].flatten()),
-                        np.abs(
-                            errors_unrestrict[:, error_idx].flatten()),
+                        np.abs(errors_restrict[:, error_idx].flatten()),
+                        np.abs(errors_unrestrict[:, error_idx].flatten()),
                         alternative="greater",
                         nan_policy="omit",
                         zero_method="wilcox",
                     )
-                error_delta = np.abs(
-                    errors_restrict[:, error_idx].flatten()
-                ) - np.abs(errors_unrestrict[:, error_idx].flatten())
+                error_delta = np.abs(errors_restrict[:, error_idx].flatten()) - np.abs(
+                    errors_unrestrict[:, error_idx].flatten()
+                )
                 error_delta_num_positive = (error_delta > 0).sum()
-                error_delta_len = error_delta[~np.isnan(
-                    error_delta)].shape[0]
+                error_delta_len = error_delta[~np.isnan(error_delta)].shape[0]
                 if (
                     return_pvalue_matrix_only
                     and (
@@ -3928,8 +3682,7 @@ def multiloco_mlcausality(
                     )
                 if not return_pvalue_matrix_only:
                     wilcoxon_num_preds = np.count_nonzero(
-                        ~np.isnan(
-                            errors_restrict[:, error_idx].flatten())
+                        ~np.isnan(errors_restrict[:, error_idx].flatten())
                     )
                 if return_pvalue_matrix_only:
                     if pvalue_matrix_type == "wilcoxon":

@@ -3,42 +3,33 @@ from setuptools import setup
 from mlcausality import __version__
 
 setup(
-    name='mlcausality',
+    name="mlcausality",
     version=__version__,
-    
-    url='https://github.com/WojtekFulmyk/mlcausality',
-    author='Wojciech Fulmyk',
-    author_email='wfulmyk@proton.me',
-    
+    url="https://github.com/WojtekFulmyk/mlcausality",
+    author="Wojciech Fulmyk",
+    author_email="wfulmyk@proton.me",
     classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Programming Language :: Python',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
-        'Topic :: Scientific/Engineering :: Information Analysis',
+        "Development Status :: 3 - Alpha",
+        "Programming Language :: Python",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Scientific/Engineering :: Information Analysis",
     ],
-    
-    install_requires=[
-        'numpy',
-        'scipy',
-        'pandas',
-        'statsmodels',
-        'scikit-learn'
-    ],
-    
+    install_requires=["numpy", "scipy", "pandas", "statsmodels", "scikit-learn"],
     extras_require={
-        'catboost': [
-            'catboost',
+        "catboost": [
+            "catboost",
         ],
-        'xgboost' : [
-            'xgboost',
+        "xgboost": [
+            "xgboost",
         ],
-        'lightgbm': [
-            'lightgbm',
+        "lightgbm": [
+            "lightgbm",
         ],
-        'all': [
-            'catboost', 'xgboost', 'lightgbm',
+        "all": [
+            "catboost",
+            "xgboost",
+            "lightgbm",
         ],
     },
-    
-    py_modules=['mlcausality'],
+    py_modules=["mlcausality"],
 )
